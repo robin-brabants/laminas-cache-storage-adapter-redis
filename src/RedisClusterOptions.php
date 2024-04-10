@@ -6,8 +6,11 @@ namespace Laminas\Cache\Storage\Adapter;
 
 use Laminas\Cache\Exception\RuntimeException;
 use Laminas\Cache\Storage\Adapter\Exception\InvalidRedisClusterConfigurationException;
+use Laminas\Stdlib\AbstractOptions;
+use Traversable;
 
 use function is_array;
+use function iterator_to_array;
 
 final class RedisClusterOptions extends AdapterOptions
 {
@@ -55,7 +58,6 @@ final class RedisClusterOptions extends AdapterOptions
 
     private string $password = '';
 
-    /** @psalm-var SslContext|null */
     private ?SslContext $sslContext = null;
 
     /**
@@ -79,6 +81,31 @@ final class RedisClusterOptions extends AdapterOptions
         if ($hasName && $hasSeeds) {
             throw InvalidRedisClusterConfigurationException::fromNameAndSeedsProvidedViaConfiguration();
         }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function setFromArray($options)
+    {
+        if ($options instanceof AbstractOptions) {
+            $options = $options->toArray();
+        } elseif ($options instanceof Traversable) {
+            $options = iterator_to_array($options);
+        }
+
+        $sslContext = $options['sslContext'] ?? $options['ssl_context'] ?? null;
+        unset($options['sslContext'], $options['ssl_context']);
+        if (is_array($sslContext)) {
+            /** @psalm-suppress MixedArgumentTypeCoercion Trust upstream that they verify the array beforehand. */
+            $sslContext = SslContext::fromSslContextArray($sslContext);
+        }
+
+        if ($sslContext instanceof SslContext) {
+            $options['ssl_context'] = $sslContext;
+        }
+
+        return parent::setFromArray($options);
     }
 
     public function setTimeout(float $timeout): void
@@ -228,24 +255,13 @@ final class RedisClusterOptions extends AdapterOptions
         $this->password = $password;
     }
 
-    /**
-     * @psalm-return SslContext|null
-     */
     public function getSslContext(): ?SslContext
     {
         return $this->sslContext;
     }
 
-    /**
-     * @psalm-param array<non-empty-string,mixed>|SslContext|null $sslContext
-     */
-    public function setSslContext(array|SslContext|null $sslContext): void
+    public function setSslContext(SslContext|null $sslContext): void
     {
-        if (is_array($sslContext)) {
-            $data       = $sslContext;
-            $sslContext = new SslContext();
-            $sslContext->exchangeArray($data);
-        }
         $this->sslContext = $sslContext;
     }
 }

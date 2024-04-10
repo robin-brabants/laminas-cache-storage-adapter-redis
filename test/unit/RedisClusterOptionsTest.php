@@ -34,11 +34,13 @@ final class RedisClusterOptionsTest extends AbstractAdapterOptionsTest
     {
         $options = new RedisClusterOptions([
             'name'        => 'foo',
-            'ssl_context' => new SslContext(localCert: '/path/to/localcert'),
+            'ssl_context' => new SslContext(localCertificatePath: '/path/to/localcert'),
         ]);
 
-        $this->assertEquals('foo', $options->getName());
-        $this->assertEquals(new SslContext(localCert: '/path/to/localcert'), $options->getSslContext());
+        self::assertEquals('foo', $options->getName());
+        $sslContext = $options->getSslContext();
+        self::assertNotNull($sslContext);
+        self::assertSame('/path/to/localcert', $sslContext->localCertificatePath);
     }
 
     public function testCanHandleOptionsWithSslContextArray(): void
@@ -48,8 +50,10 @@ final class RedisClusterOptionsTest extends AbstractAdapterOptionsTest
             'ssl_context' => ['local_cert' => '/path/to/localcert'],
         ]);
 
-        $this->assertEquals('foo', $options->getName());
-        $this->assertEquals(new SslContext(localCert: '/path/to/localcert'), $options->getSslContext());
+        self::assertEquals('foo', $options->getName());
+        $sslContext = $options->getSslContext();
+        self::assertNotNull($sslContext);
+        self::assertSame('/path/to/localcert', $sslContext->localCertificatePath);
     }
 
     public function testCanHandleOptionsWithNodename(): void
