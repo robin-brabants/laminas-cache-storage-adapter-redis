@@ -81,7 +81,8 @@ final class RedisClusterResourceManager implements RedisClusterResourceManagerIn
                 $options->getTimeout(),
                 $options->getReadTimeout(),
                 $options->isPersistent(),
-                $options->getPassword()
+                $options->getPassword(),
+                $options->getSslContext()
             );
         }
 
@@ -90,13 +91,20 @@ final class RedisClusterResourceManager implements RedisClusterResourceManagerIn
             $password = null;
         }
 
+        /**
+         * Psalm currently (<= 5.23.1) uses an outdated (phpredis < 5.3.2) constructor signature for the RedisCluster
+         * class in the phpredis extension.
+         *
+         * @psalm-suppress TooManyArguments https://github.com/vimeo/psalm/pull/10862
+         */
         return new RedisClusterFromExtension(
             null,
             $options->getSeeds(),
             $options->getTimeout(),
             $options->getReadTimeout(),
             $options->isPersistent(),
-            $password
+            $password,
+            $options->getSslContext()?->toSslContextArray()
         );
     }
 
@@ -108,7 +116,8 @@ final class RedisClusterResourceManager implements RedisClusterResourceManagerIn
         float $fallbackTimeout,
         float $fallbackReadTimeout,
         bool $persistent,
-        string $fallbackPassword
+        string $fallbackPassword,
+        ?SslContext $sslContext
     ): RedisClusterFromExtension {
         $options     = new RedisClusterOptionsFromIni();
         $seeds       = $options->getSeeds($name);
@@ -116,13 +125,20 @@ final class RedisClusterResourceManager implements RedisClusterResourceManagerIn
         $readTimeout = $options->getReadTimeout($name, $fallbackReadTimeout);
         $password    = $options->getPasswordByName($name, $fallbackPassword);
 
+        /**
+         * Psalm currently (<= 5.23.1) uses an outdated (phpredis < 5.3.2) constructor signature for the RedisCluster
+         * class in the phpredis extension.
+         *
+         * @psalm-suppress TooManyArguments https://github.com/vimeo/psalm/pull/10862
+         */
         return new RedisClusterFromExtension(
             null,
             $seeds,
             $timeout,
             $readTimeout,
             $persistent,
-            $password
+            $password,
+            $sslContext?->toSslContextArray()
         );
     }
 

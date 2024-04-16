@@ -9,6 +9,7 @@ use InvalidArgumentException;
 use Laminas\Cache\Storage\Adapter\AdapterOptions;
 use Laminas\Cache\Storage\Adapter\Exception\InvalidRedisClusterConfigurationException;
 use Laminas\Cache\Storage\Adapter\RedisClusterOptions;
+use Laminas\Cache\Storage\Adapter\SslContext;
 use Redis as RedisFromExtension;
 use ReflectionClass;
 
@@ -27,6 +28,32 @@ final class RedisClusterOptionsTest extends AbstractAdapterOptionsTest
     protected function createAdapterOptions(): AdapterOptions
     {
         return new RedisClusterOptions(['seeds' => ['localhost']]);
+    }
+
+    public function testCanHandleOptionsWithSslContextObject(): void
+    {
+        $options = new RedisClusterOptions([
+            'name'        => 'foo',
+            'ssl_context' => new SslContext(localCertificatePath: '/path/to/localcert'),
+        ]);
+
+        self::assertEquals('foo', $options->getName());
+        $sslContext = $options->getSslContext();
+        self::assertNotNull($sslContext);
+        self::assertSame('/path/to/localcert', $sslContext->localCertificatePath);
+    }
+
+    public function testCanHandleOptionsWithSslContextArray(): void
+    {
+        $options = new RedisClusterOptions([
+            'name'        => 'foo',
+            'ssl_context' => ['local_cert' => '/path/to/localcert'],
+        ]);
+
+        self::assertEquals('foo', $options->getName());
+        $sslContext = $options->getSslContext();
+        self::assertNotNull($sslContext);
+        self::assertSame('/path/to/localcert', $sslContext->localCertificatePath);
     }
 
     public function testCanHandleOptionsWithNodename(): void
