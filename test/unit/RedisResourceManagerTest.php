@@ -49,6 +49,7 @@ class RedisResourceManagerTest extends TestCase
         $this->assertEquals('testhost', $server['host']);
         $this->assertEquals(1234, $server['port']);
         $this->assertEquals('dummypass', $this->resourceManager->getPassword($dummyResId));
+        $this->assertEquals('dummyuser', $this->resourceManager->getUser($dummyResId));
     }
 
     /**
@@ -71,6 +72,27 @@ class RedisResourceManagerTest extends TestCase
         $this->assertEquals('testhost', $server['host']);
         $this->assertEquals(1234, $server['port']);
         $this->assertEquals('abcd1234', $this->resourceManager->getPassword($dummyResId2));
+        $this->assertEquals('dummyuser', $this->resourceManager->getUser($dummyResId2));
+    }
+
+    public function testSetServerWithPasswordInParametersAndNoUser(): void
+    {
+        $server      = 'redis://testhost:1234';
+        $dummyResId2 = '12345678901';
+        $resource    = [
+            'persistent_id' => 'my_connection_name',
+            'server'        => $server,
+            'password'      => 'abcd1234',
+        ];
+
+        $this->resourceManager->setResource($dummyResId2, $resource);
+
+        $server = $this->resourceManager->getServer($dummyResId2);
+
+        $this->assertEquals('testhost', $server['host']);
+        $this->assertEquals(1234, $server['port']);
+        $this->assertEquals('abcd1234', $this->resourceManager->getPassword($dummyResId2));
+        $this->assertEquals('', $this->resourceManager->getUser($dummyResId2));
     }
 
     /**
@@ -279,6 +301,36 @@ class RedisResourceManagerTest extends TestCase
                 'initialized' => false,
                 'server'      => 'somewhere:6379',
                 'password'    => 'secret',
+            ]
+        );
+
+        $this->expectException(RedisRuntimeException::class);
+        $this->expectExceptionMessage('test');
+        $this->resourceManager->getResource('default');
+    }
+
+    public function testWillCatchAuthDuringConnectExceptionWithUser(): void
+    {
+        $redis = $this->createMock(Redis::class);
+
+        $redis
+            ->method('connect')
+            ->willReturn(true);
+
+        $redis
+            ->expects(self::atLeastOnce())
+            ->method('auth')
+            ->with(['dummyuser', 'secret'])
+            ->willThrowException(new RedisException('test'));
+
+        $this->resourceManager->setResource(
+            'default',
+            [
+                'resource'    => $redis,
+                'initialized' => false,
+                'server'      => 'somewhere:6379',
+                'password'    => 'secret',
+                'user'        => 'dummyuser',
             ]
         );
 

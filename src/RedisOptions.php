@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Laminas\Cache\Storage\Adapter;
 
 use Laminas\Cache\Exception;
-use Laminas\Cache\Storage\Adapter\RedisResourceManager;
 
 use function sprintf;
 use function strlen;
@@ -260,5 +259,27 @@ final class RedisOptions extends AdapterOptions
     public function getPassword()
     {
         return $this->getResourceManager()->getPassword($this->getResourceId());
+    }
+
+    /**
+     * Set resource user
+     *
+     * @param string $user ACL User
+     * @return RedisOptions Provides a fluent interface
+     */
+    public function setUser($user)
+    {
+        $this->getResourceManager()->setUser($this->getResourceId(), $user);
+        return $this;
+    }
+
+    /**
+     * Get resource user
+     *
+     * @return string
+     */
+    public function getUser()
+    {
+        return $this->getResourceManager()->getUser($this->getResourceId());
     }
 }

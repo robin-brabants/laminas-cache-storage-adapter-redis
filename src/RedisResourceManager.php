@@ -124,6 +124,22 @@ final class RedisResourceManager
     }
 
     /**
+     * Get redis resource user
+     *
+     * @param string $id
+     * @return string
+     */
+    public function getUser($id)
+    {
+        if (! $this->hasResource($id)) {
+            throw new Exception\RuntimeException("No resource with id '{$id}'");
+        }
+
+        $resource = &$this->resources[$id];
+        return $resource['user'];
+    }
+
+    /**
      * Gets a redis resource
      *
      * @param string $id
@@ -280,6 +296,36 @@ final class RedisResourceManager
     }
 
     /**
+     * Extract password to be used on connection
+     *
+     * @param mixed $resource
+     * @param mixed $serverUri
+     * @return string|null
+     */
+    protected function extractUser($resource, $serverUri)
+    {
+        if (! empty($resource['user'])) {
+            return $resource['user'];
+        }
+
+        if (! is_string($serverUri)) {
+            return null;
+        }
+
+        // parse server from URI host{:?port}
+        $server = trim($serverUri);
+
+        if (strpos($server, '/') === 0) {
+            return null;
+        }
+
+        //non unix domain socket connection
+        $server = parse_url($server);
+
+        return $server['user'] ?? null;
+    }
+
+    /**
      * Connects to redis server
      *
      * @param array $resource
@@ -315,7 +361,9 @@ final class RedisResourceManager
             }
 
             $resource['initialized'] = true;
-            if ($resource['password']) {
+            if ($resource['user'] && $resource['password']) {
+                $redis->auth([$resource['user'], $resource['password']]);
+            } elseif ($resource['password']) {
                 $redis->auth($resource['password']);
             }
             $redis->select($resource['database']);
@@ -339,6 +387,7 @@ final class RedisResourceManager
             'persistent_id' => '',
             'lib_options'   => [],
             'server'        => [],
+            'user'          => '',
             'password'      => '',
             'database'      => 0,
             'resource'      => null,
@@ -361,6 +410,7 @@ final class RedisResourceManager
             // #6495 note: order is important here, as `normalizeServer` applies destructive
             // transformations on $resource['server']
             $resource['password'] = $this->extractPassword($resource, $resource['server']);
+            $resource['user']     = $this->extractUser($resource, $resource['server']);
 
             $this->normalizeServer($resource['server']);
         } else {
@@ -624,11 +674,16 @@ final class RedisResourceManager
         $resource             = &$this->resources[$id];
         $resource['password'] = $this->extractPassword($resource, $server);
 
+        $resource['user'] = $this->extractUser($resource, $server);
+
         if ($resource['resource'] instanceof RedisResource) {
             $resourceParams = ['server' => $server];
 
             if (! empty($resource['password'])) {
                 $resourceParams['password'] = $resource['password'];
+            }
+            if (! empty($resource['user'])) {
+                $resourceParams['user'] = $resource['user'];
             }
 
             $this->setResource($id, $resourceParams);
@@ -644,7 +699,7 @@ final class RedisResourceManager
      *
      * @param string $id
      * @param string $password
-     * @return RedisResource
+     * @return RedisResourceManager
      */
     public function setPassword($id, $password)
     {
@@ -712,5 +767,26 @@ final class RedisResourceManager
         }
 
         return $info;
+    }
+
+    /**
+     * Set redis user
+     *
+     * @param string $id
+     * @param string $user
+     * @return RedisResourceManager
+     */
+    public function setUser($id, $user)
+    {
+        if (! $this->hasResource($id)) {
+            return $this->setResource($id, [
+                'user' => $user,
+            ]);
+        }
+
+        $resource                = &$this->resources[$id];
+        $resource['user']        = $user;
+        $resource['initialized'] = false;
+        return $this;
     }
 }
