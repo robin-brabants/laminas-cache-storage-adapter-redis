@@ -328,7 +328,7 @@ final class RedisTest extends AbstractCommonAdapterTest
             'Password was set incorrectly using RedisOptions'
         );
     }
-    
+
     public function testOptionsGetSetUser(): void
     {
         $user = 'dummyuser';
