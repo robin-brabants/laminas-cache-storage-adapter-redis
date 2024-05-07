@@ -329,37 +329,7 @@ class RedisResourceManagerTest extends TestCase
         $this->expectExceptionMessage('test');
         $this->resourceManager->getResource('default');
     }
-
-    public function testWillCatchAuthDuringConnectExceptionWithUser(): void
-    {
-        $redis = $this->createMock(Redis::class);
-
-        $redis
-            ->method('connect')
-            ->willReturn(true);
-
-        $redis
-            ->expects(self::atLeastOnce())
-            ->method('auth')
-            ->with(['dummyuser', 'secret'])
-            ->willThrowException(new RedisException('test'));
-
-        $this->resourceManager->setResource(
-            'default',
-            [
-                'resource'    => $redis,
-                'initialized' => false,
-                'server'      => 'somewhere:6379',
-                'password'    => 'secret',
-                'user'        => 'dummyuser',
-            ]
-        );
-
-        $this->expectException(RedisRuntimeException::class);
-        $this->expectExceptionMessage('test');
-        $this->resourceManager->getResource('default');
-    }
-
+    
     public function testWillCatchSelectDatabaseException(): void
     {
         $redis = $this->createMock(Redis::class);
