@@ -30,10 +30,25 @@ use function trim;
 /**
  * This is a resource manager for redis
  */
+/**
+ * @psalm-type ResourceArrayShape =array{
+ *     resource?: RedisResource,
+ *     database?: non-empty-string,
+ *     lib_options?: array,
+ *     version?: int|string,
+ *     password?: non-empty-string,
+ *     persistent_id?: non-empty-string,
+ *     server?: non-empty-string,
+ *     user?: non-empty-string|null,
+ *     initialized?: bool
+ * }
+ */
 final class RedisResourceManager
 {
     /**
-     * Registered resources
+     *  Registered resources
+     *
+     * @var array<ResourceArrayShape> $resources
      */
     private array $resources = [];
 
@@ -266,7 +281,7 @@ final class RedisResourceManager
     /**
      * Extract password to be used on connection
      *
-     * @param mixed $resource
+     * @param ResourceArrayShape $resource
      * @param mixed $serverUri
      */
     protected function extractPassword($resource, $serverUri): ?string
@@ -295,7 +310,7 @@ final class RedisResourceManager
     /**
      * Extract password to be used on connection
      *
-     * @param array{user?:string} $resource
+     * @param ResourceArrayShape $resource
      */
     protected function extractUser(array $resource, array|string $serverUri): ?string
     {
@@ -323,7 +338,7 @@ final class RedisResourceManager
     /**
      * Connects to redis server
      *
-     * @param array $resource
+     * @param ResourceArrayShape $resource
      * @return void
      * @throws Exception\RuntimeException
      */
@@ -766,9 +781,6 @@ final class RedisResourceManager
 
     /**
      * Set redis user
-     *
-     * @param string $id
-     * @param string $user
      */
     public function setUser(string $id, string $user): void
     {
