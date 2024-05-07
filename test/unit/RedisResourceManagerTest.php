@@ -95,6 +95,27 @@ class RedisResourceManagerTest extends TestCase
         $this->assertEquals('', $this->resourceManager->getUser($dummyResId2));
     }
 
+    public function testSetServerWithPasswordInParametersAndUser(): void
+    {
+        $server      = 'redis://testhost:1234';
+        $dummyResId2 = '12345678901';
+        $resource    = [
+            'persistent_id' => 'my_connection_name',
+            'server'        => $server,
+            'password'      => 'abcd1234',
+            'user'          => "dummyuser",
+        ];
+
+        $this->resourceManager->setResource($dummyResId2, $resource);
+
+        $server = $this->resourceManager->getServer($dummyResId2);
+
+        $this->assertEquals('testhost', $server['host']);
+        $this->assertEquals(1234, $server['port']);
+        $this->assertEquals('abcd1234', $this->resourceManager->getPassword($dummyResId2));
+        $this->assertEquals('dummyuser', $this->resourceManager->getUser($dummyResId2));
+    }
+
     /**
      * @group 6495
      */
