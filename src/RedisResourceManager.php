@@ -22,6 +22,7 @@ use function is_string;
 use function method_exists;
 use function parse_url;
 use function str_replace;
+use function str_starts_with;
 use function strpos;
 use function strtoupper;
 use function trim;
@@ -125,18 +126,15 @@ final class RedisResourceManager
 
     /**
      * Get redis resource user
-     *
-     * @param string $id
-     * @return string
      */
-    public function getUser($id)
+    public function getUser(string $id): ?string
     {
         if (! $this->hasResource($id)) {
             throw new Exception\RuntimeException("No resource with id '{$id}'");
         }
 
         $resource = &$this->resources[$id];
-        return $resource['user'];
+        return $resource['user'] ?? null;
     }
 
     /**
@@ -270,23 +268,22 @@ final class RedisResourceManager
      *
      * @param mixed $resource
      * @param mixed $serverUri
-     * @return string|null
      */
-    protected function extractPassword($resource, $serverUri)
+    protected function extractPassword($resource, $serverUri): ?string
     {
         if (! empty($resource['password'])) {
             return $resource['password'];
         }
 
         if (! is_string($serverUri)) {
-            return;
+            return null;
         }
 
         // parse server from URI host{:?port}
         $server = trim($serverUri);
 
         if (strpos($server, '/') === 0) {
-            return;
+            return null;
         }
 
         //non unix domain socket connection
@@ -298,11 +295,9 @@ final class RedisResourceManager
     /**
      * Extract password to be used on connection
      *
-     * @param mixed $resource
-     * @param mixed $serverUri
-     * @return string|null
+     * @param array{user?:string} $resource
      */
-    protected function extractUser($resource, $serverUri)
+    protected function extractUser(array $resource, array|string $serverUri): ?string
     {
         if (! empty($resource['user'])) {
             return $resource['user'];
@@ -315,7 +310,7 @@ final class RedisResourceManager
         // parse server from URI host{:?port}
         $server = trim($serverUri);
 
-        if (strpos($server, '/') === 0) {
+        if (str_starts_with($server, '/')) {
             return null;
         }
 
@@ -774,12 +769,11 @@ final class RedisResourceManager
      *
      * @param string $id
      * @param string $user
-     * @return RedisResourceManager
      */
-    public function setUser($id, $user)
+    public function setUser(string $id, string $user): void
     {
         if (! $this->hasResource($id)) {
-            return $this->setResource($id, [
+            $this->setResource($id, [
                 'user' => $user,
             ]);
         }
@@ -787,6 +781,5 @@ final class RedisResourceManager
         $resource                = &$this->resources[$id];
         $resource['user']        = $user;
         $resource['initialized'] = false;
-        return $this;
     }
 }

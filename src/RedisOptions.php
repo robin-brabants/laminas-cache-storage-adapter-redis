@@ -267,7 +267,7 @@ final class RedisOptions extends AdapterOptions
      * @param string $user ACL User
      * @return RedisOptions Provides a fluent interface
      */
-    public function setUser($user)
+    public function setUser(string $user): RedisOptions
     {
         $this->getResourceManager()->setUser($this->getResourceId(), $user);
         return $this;
@@ -275,10 +275,8 @@ final class RedisOptions extends AdapterOptions
 
     /**
      * Get resource user
-     *
-     * @return string
      */
-    public function getUser()
+    public function getUser(): ?string
     {
         return $this->getResourceManager()->getUser($this->getResourceId());
     }
