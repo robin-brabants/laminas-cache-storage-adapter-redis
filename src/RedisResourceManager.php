@@ -374,7 +374,7 @@ final class RedisResourceManager
             if ($resource['user'] && $resource['password']) {
                 $redis->auth([$resource['user'], $resource['password']]);
             } elseif ($resource['password']) {
-                $redis->auth($resource['password']);
+                $redis->auth([$resource['password']]);
             }
             $redis->select($resource['database']);
         } catch (RedisResourceException $exception) {

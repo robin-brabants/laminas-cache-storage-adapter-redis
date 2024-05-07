@@ -259,7 +259,7 @@ class RedisResourceManagerTest extends TestCase
         $redis
             ->expects(self::atLeastOnce())
             ->method('auth')
-            ->with('foobar')
+            ->with(['foobar'])
             ->willThrowException(new RedisException('test'));
 
         $this->resourceManager->setResource(
@@ -272,6 +272,35 @@ class RedisResourceManagerTest extends TestCase
         );
         $this->expectException(RedisRuntimeException::class);
         $this->expectExceptionMessage('test');
+        $this->resourceManager->getResource('default');
+    }
+
+    public function testWillAuthenticateWithUserAndPassword(): void
+    {
+        $redis = $this->createMock(Redis::class);
+        $redis
+            ->method('connect')
+            ->willReturn(true);
+
+        $redis
+            ->method('info')
+            ->willReturn(['redis_version' => '1.2.3']);
+
+        $redis
+            ->expects(self::atLeastOnce())
+            ->method('auth')
+            ->with(['default', 'foobar']);
+
+        $this->resourceManager->setResource(
+            'default',
+            [
+                'resource' => $redis,
+                'server'   => 'whatever:6379',
+                'password' => 'foobar',
+                'user'     => 'default',
+            ]
+        );
+
         $this->resourceManager->getResource('default');
     }
 
@@ -312,7 +341,7 @@ class RedisResourceManagerTest extends TestCase
         $redis
             ->expects(self::atLeastOnce())
             ->method('auth')
-            ->with('secret')
+            ->with(['secret'])
             ->willThrowException(new RedisException('test'));
 
         $this->resourceManager->setResource(
@@ -329,7 +358,7 @@ class RedisResourceManagerTest extends TestCase
         $this->expectExceptionMessage('test');
         $this->resourceManager->getResource('default');
     }
-    
+
     public function testWillCatchSelectDatabaseException(): void
     {
         $redis = $this->createMock(Redis::class);
