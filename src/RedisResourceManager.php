@@ -32,15 +32,15 @@ use function trim;
  */
 /**
  * @psalm-type ResourceArrayShape =array{
- *     resource?: RedisResource,
- *     database?: non-empty-string,
- *     lib_options?: array,
- *     version?: int|string,
- *     password?: non-empty-string,
- *     persistent_id?: non-empty-string,
- *     server?: non-empty-string,
- *     user?: non-empty-string|null,
- *     initialized?: bool
+ *     persistent_id: string,
+ *     lib_options: array<non-negative-int,mixed>,
+ *     server: array{host: string, port: int, timeout: int},
+ *     user: string|null,
+ *     password: string|null,
+ *     database: int,
+ *     resource: RedisResource|null,
+ *     initialized: bool,
+ *     version: string
  * }
  */
 final class RedisResourceManager
@@ -48,7 +48,7 @@ final class RedisResourceManager
     /**
      *  Registered resources
      *
-     * @var array<ResourceArrayShape> $resources
+     * @var array<string,ResourceArrayShape> $resources
      */
     private array $resources = [];
 
@@ -111,7 +111,7 @@ final class RedisResourceManager
      * Get redis resource database
      *
      * @param string $id
-     * @return string
+     * @return int
      */
     public function getDatabase($id)
     {
@@ -127,7 +127,7 @@ final class RedisResourceManager
      * Get redis resource password
      *
      * @param string $id
-     * @return string
+     * @return string|null
      */
     public function getPassword($id)
     {
@@ -402,7 +402,7 @@ final class RedisResourceManager
             'database'      => 0,
             'resource'      => null,
             'initialized'   => false,
-            'version'       => 0,
+            'version'       => "0.0.0-unknown",
         ];
         if (! $resource instanceof RedisResource) {
             if ($resource instanceof Traversable) {

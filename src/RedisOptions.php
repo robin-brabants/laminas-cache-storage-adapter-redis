@@ -254,7 +254,7 @@ final class RedisOptions extends AdapterOptions
     /**
      * Get resource password
      *
-     * @return string
+     * @return string|null
      */
     public function getPassword()
     {
