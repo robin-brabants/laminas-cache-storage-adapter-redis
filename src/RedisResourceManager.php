@@ -176,10 +176,10 @@ final class RedisResourceManager
                 $redis                = $resource['resource'];
                 $info                 = $this->getRedisInfo($redis);
                 $resource['version']  = $info['redis_version'];
-                $this->resources[$id] = $resource;
                 unset($info);
             }
 
+            $this->resources[$id] = $resource;
             return $resource['resource'];
         }
 
