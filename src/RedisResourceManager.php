@@ -12,7 +12,7 @@ use RedisException as RedisResourceException;
 use ReflectionClass;
 use Traversable;
 
-use function array_merge;
+use function array_replace;
 use function assert;
 use function constant;
 use function defined;
@@ -31,7 +31,7 @@ use function trim;
  * This is a resource manager for redis
  */
 /**
- * @psalm-type ResourceArrayShape =array{
+ * @psalm-type ResourceArrayShape = array{
  *     persistent_id: string,
  *     lib_options: array<non-negative-int,mixed>,
  *     server: array{host: string, port: int, timeout: int},
@@ -165,7 +165,7 @@ final class RedisResourceManager
             throw new Exception\RuntimeException("No resource with id '{$id}'");
         }
 
-        $resource = &$this->resources[$id];
+        $resource = $this->resources[$id];
         if ($resource['resource'] instanceof RedisResource) {
             //in case new server was set then connect
             if (! $resource['initialized']) {
@@ -173,10 +173,10 @@ final class RedisResourceManager
             }
 
             if (! $resource['version']) {
-                $redis = $resource['resource'];
-                assert($redis instanceof RedisResource);
-                $info                = $this->getRedisInfo($redis);
-                $resource['version'] = $info['redis_version'];
+                $redis                = $resource['resource'];
+                $info                 = $this->getRedisInfo($redis);
+                $resource['version']  = $info['redis_version'];
+                $this->resources[$id] = $resource;
                 unset($info);
             }
 
@@ -194,10 +194,10 @@ final class RedisResourceManager
             $redis->setOption($k, $v);
         }
 
-        $info                = $this->getRedisInfo($redis);
-        $resource['version'] = $info['redis_version'];
+        $info                 = $this->getRedisInfo($redis);
+        $resource['version']  = $info['redis_version'];
+        $this->resources[$id] = $resource;
         unset($info);
-        $this->resources[$id]['resource'] = $redis;
         return $redis;
     }
 
@@ -413,7 +413,15 @@ final class RedisResourceManager
                 );
             }
 
-            $resource = array_merge($defaults, $resource);
+            /**
+             * Lets assume that the resource passed via RedisResourceManager#setResource is already providing
+             * options in the expected array shape format for now. This is how it worked since 2013 and therefore,
+             * for BC reasons, we can continue doing that until we refactor this in the next major.
+             *
+             * @var ResourceArrayShape $resource
+             */
+            $resource = array_replace($defaults, $resource);
+
             // normalize and validate params
             $this->normalizePersistentId($resource['persistent_id']);
 
@@ -429,13 +437,10 @@ final class RedisResourceManager
             //1) pinging server
             //2) checking undocumented property socket which is available only
             //after successful connect
-            $resource = array_merge(
-                $defaults,
-                [
-                    'resource'    => $resource,
-                    'initialized' => isset($resource->socket),
-                ]
-            );
+            $resource = array_replace($defaults, [
+                'resource'    => $resource,
+                'initialized' => isset($resource->socket),
+            ]);
         }
         $this->resources[$id] = $resource;
         return $this;
@@ -534,8 +539,7 @@ final class RedisResourceManager
         }
 
         $this->normalizeLibOptions($libOptions);
-        $redis = &$resource['resource'];
-        assert($redis instanceof RedisResource);
+        $redis = $resource['resource'];
 
         if (method_exists($redis, 'setOptions')) {
             $redis->setOptions($libOptions);
@@ -552,7 +556,7 @@ final class RedisResourceManager
      * Get Redis options
      *
      * @param string $id
-     * @return array
+     * @return array<int,mixed>
      * @throws Exception\RuntimeException
      */
     public function getLibOptions($id)
@@ -569,6 +573,10 @@ final class RedisResourceManager
             $constants  = $reflection->getConstants();
             foreach ($constants as $constName => $constValue) {
                 if (strpos($constName, 'OPT_') === 0) {
+                    assert(
+                        is_int($constValue),
+                        'Redis option constants are always pointing to an int-mask.',
+                    );
                     $libOptions[$constValue] = $resource['resource']->getOption($constValue);
                 }
             }
@@ -742,7 +750,7 @@ final class RedisResourceManager
             ]);
         }
 
-        $resource = &$this->resources[$id];
+        $resource = $this->resources[$id];
         $redis    = $resource['resource'];
         if ($redis instanceof RedisResource && $resource['initialized']) {
             try {
@@ -753,6 +761,7 @@ final class RedisResourceManager
         }
 
         $resource['database'] = $database;
+        $this->resources[$id] = $resource;
 
         return $this;
     }
@@ -790,8 +799,9 @@ final class RedisResourceManager
             ]);
         }
 
-        $resource                = &$this->resources[$id];
+        $resource                = $this->resources[$id];
         $resource['user']        = $user;
         $resource['initialized'] = false;
+        $this->resources[$id]    = $resource;
     }
 }

@@ -138,17 +138,11 @@
       <code>setPersistent</code>
       <code>setReadTimeout</code>
       <code>setSeeds</code>
-      <code>setTimeout</code>
       <code>setSslContext</code>
+      <code>setTimeout</code>
     </PossiblyUnusedMethod>
   </file>
   <file src="src/RedisOptions.php">
-    <InvalidReturnStatement>
-      <code><![CDATA[$this->getResourceManager()->getDatabase($this->getResourceId())]]></code>
-    </InvalidReturnStatement>
-    <InvalidReturnType>
-      <code>int</code>
-    </InvalidReturnType>
     <LessSpecificReturnStatement>
       <code>parent::setNamespace($namespace)</code>
     </LessSpecificReturnStatement>
@@ -169,13 +163,8 @@
     </DocblockTypeContradiction>
     <InvalidReturnStatement>
       <code>$info</code>
-      <code>$this</code>
-      <code><![CDATA[$this->setResource($id, [
-                'password' => $password,
-            ])]]></code>
     </InvalidReturnStatement>
     <InvalidReturnType>
-      <code>RedisResource</code>
       <code>array{redis_version:string}</code>
     </InvalidReturnType>
     <MissingReturnType>
@@ -185,94 +174,8 @@
       <code>normalizeServer</code>
     </MissingReturnType>
     <MixedArgument>
-      <code>$k</code>
       <code>$key</code>
-      <code>$resource</code>
-      <code><![CDATA[$resource['database']]]></code>
-      <code><![CDATA[$resource['lib_options']]]></code>
-      <code><![CDATA[$resource['persistent_id']]]></code>
-      <code><![CDATA[$resource['persistent_id']]]></code>
-      <code><![CDATA[$resource['server']]]></code>
-      <code><![CDATA[$server['host']]]></code>
-      <code><![CDATA[$server['host']]]></code>
-      <code><![CDATA[$server['host']]]></code>
-      <code><![CDATA[$server['host']]]></code>
-      <code><![CDATA[$server['port']]]></code>
-      <code><![CDATA[$server['port']]]></code>
-      <code><![CDATA[$server['timeout']]]></code>
-      <code><![CDATA[$server['timeout']]]></code>
-      <code><![CDATA[$server['timeout']]]></code>
     </MixedArgument>
-    <MixedArrayAccess>
-      <code><![CDATA[$resource['database']]]></code>
-      <code><![CDATA[$resource['initialized']]]></code>
-      <code><![CDATA[$resource['initialized']]]></code>
-      <code><![CDATA[$resource['initialized']]]></code>
-      <code><![CDATA[$resource['lib_options']]]></code>
-      <code><![CDATA[$resource['lib_options']]]></code>
-      <code><![CDATA[$resource['lib_options'][$key]]]></code>
-      <code><![CDATA[$resource['password']]]></code>
-      <code><![CDATA[$resource['password']]]></code>
-      <code><![CDATA[$resource['persistent_id']]]></code>
-      <code><![CDATA[$resource['resource']]]></code>
-      <code><![CDATA[$resource['resource']]]></code>
-      <code><![CDATA[$resource['resource']]]></code>
-      <code><![CDATA[$resource['resource']]]></code>
-      <code><![CDATA[$resource['resource']]]></code>
-      <code><![CDATA[$resource['resource']]]></code>
-      <code><![CDATA[$resource['resource']]]></code>
-      <code><![CDATA[$resource['resource']]]></code>
-      <code><![CDATA[$resource['resource']]]></code>
-      <code><![CDATA[$resource['resource']]]></code>
-      <code><![CDATA[$resource['server']]]></code>
-      <code><![CDATA[$server['host']]]></code>
-      <code><![CDATA[$server['host']]]></code>
-      <code><![CDATA[$server['host']]]></code>
-      <code><![CDATA[$server['host']]]></code>
-      <code><![CDATA[$server['port']]]></code>
-      <code><![CDATA[$server['port']]]></code>
-      <code><![CDATA[$server['timeout']]]></code>
-      <code><![CDATA[$server['timeout']]]></code>
-      <code><![CDATA[$server['timeout']]]></code>
-      <code><![CDATA[$this->resources[$resourceId]['version']]]></code>
-      <code><![CDATA[$this->resources[$resourceId]['version']]]></code>
-    </MixedArrayAccess>
-    <MixedArrayAssignment>
-      <code><![CDATA[$resource['database']]]></code>
-      <code><![CDATA[$resource['initialized']]]></code>
-      <code><![CDATA[$resource['lib_options']]]></code>
-      <code><![CDATA[$resource['password']]]></code>
-      <code><![CDATA[$resource['password']]]></code>
-      <code><![CDATA[$resource['persistent_id']]]></code>
-      <code><![CDATA[$resource['server']]]></code>
-    </MixedArrayAssignment>
-    <MixedArrayOffset>
-      <code>$libOptions[$constValue]</code>
-    </MixedArrayOffset>
-    <MixedInferredReturnType>
-      <code>RedisResource</code>
-      <code>array</code>
-      <code>array</code>
-      <code>string</code>
-      <code>string</code>
-      <code>string</code>
-      <code>string</code>
-      <code>string|null</code>
-    </MixedInferredReturnType>
-    <MixedMethodCall>
-      <code>getOption</code>
-      <code>getOption</code>
-    </MixedMethodCall>
-    <MixedReturnStatement>
-      <code><![CDATA[$resource['database']]]></code>
-      <code><![CDATA[$resource['lib_options']]]></code>
-      <code><![CDATA[$resource['password']]]></code>
-      <code><![CDATA[$resource['password']]]></code>
-      <code><![CDATA[$resource['persistent_id']]]></code>
-      <code><![CDATA[$resource['resource']]]></code>
-      <code><![CDATA[$resource['server']]]></code>
-      <code><![CDATA[$this->resources[$resourceId]['version']]]></code>
-    </MixedReturnStatement>
     <NoValue>
       <code>$server</code>
     </NoValue>
@@ -290,7 +193,6 @@
     <UnsupportedPropertyReferenceUsage>
       <code><![CDATA[$resource                = &$this->resources[$id]]]></code>
       <code><![CDATA[$resource             = &$this->resources[$id]]]></code>
-      <code><![CDATA[$resource = &$this->resources[$id]]]></code>
       <code><![CDATA[$resource = &$this->resources[$id]]]></code>
       <code><![CDATA[$resource = &$this->resources[$id]]]></code>
       <code><![CDATA[$resource = &$this->resources[$id]]]></code>
