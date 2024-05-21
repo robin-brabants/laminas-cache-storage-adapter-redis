@@ -53,18 +53,6 @@ final class RedisTest extends AbstractCommonAdapterTest
         parent::setUp();
     }
 
-    public function tearDown(): void
-    {
-        if ($this->storage) {
-            try {
-                $this->storage->flush();
-            } catch (Throwable $exception) {
-            }
-        }
-
-        parent::tearDown();
-    }
-
     public function testLibOptionsFirst(): void
     {
         $options = [
