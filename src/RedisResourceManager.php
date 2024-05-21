@@ -197,7 +197,6 @@ final class RedisResourceManager
         $info                 = $this->getRedisInfo($redis);
         $resource['version']  = $info['redis_version'];
         $this->resources[$id] = $resource;
-        unset($info);
         return $redis;
     }
 
@@ -370,13 +369,13 @@ final class RedisResourceManager
                 throw new Exception\RuntimeException('Could not establish connection with Redis instance');
             }
 
-            $resource['initialized'] = true;
             if ($resource['user'] && $resource['password']) {
                 $redis->auth([$resource['user'], $resource['password']]);
             } elseif ($resource['password']) {
                 $redis->auth([$resource['password']]);
             }
             $redis->select($resource['database']);
+            $resource['initialized'] = true;
         } catch (RedisResourceException $exception) {
             throw RedisRuntimeException::fromRedisException($exception, $redis);
         }
