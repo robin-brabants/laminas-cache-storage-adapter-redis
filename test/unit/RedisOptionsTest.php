@@ -16,7 +16,7 @@ final class RedisOptionsTest extends AbstractAdapterOptionsTest
 {
     protected function createAdapterOptions(): AdapterOptions
     {
-        return new RedisOptions();
+        return new RedisOptions(['server' => ['host' => 'localhost']]);
     }
 
     public function testGetSetNamespace(): void

@@ -98,7 +98,6 @@
     </PossiblyNullReference>
     <PossiblyUnusedReturnValue>
       <code>Redis</code>
-      <code>bool</code>
     </PossiblyUnusedReturnValue>
     <PropertyNotSetInConstructor>
       <code>Redis</code>
@@ -218,9 +217,6 @@
       <code><![CDATA[$this->storage->getMetadata($key)['ttl']]]></code>
       <code><![CDATA[$this->storage->getMetadata($key)['ttl']]]></code>
     </PossiblyInvalidArrayAccess>
-    <RedundantConditionGivenDocblockType>
-      <code><![CDATA[$this->storage]]></code>
-    </RedundantConditionGivenDocblockType>
     <UndefinedMethod>
       <code><![CDATA[$redis->info()]]></code>
     </UndefinedMethod>

@@ -11,7 +11,6 @@ use Laminas\Cache\Storage\Plugin\Serializer;
 use LaminasTest\Cache\Storage\Adapter\AbstractCommonAdapterTest;
 use PHPUnit\Framework\MockObject\MockObject;
 use Redis as RedisResource;
-use Throwable;
 
 use function ceil;
 use function count;
