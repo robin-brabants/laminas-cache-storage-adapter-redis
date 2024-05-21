@@ -402,7 +402,7 @@ final class RedisResourceManager
             'database'      => 0,
             'resource'      => null,
             'initialized'   => false,
-            'version'       => "0.0.0-unknown",
+            'version'       => '',
         ];
         if (! $resource instanceof RedisResource) {
             if ($resource instanceof Traversable) {
