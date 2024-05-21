@@ -10,7 +10,9 @@ use PHPUnit\Framework\TestCase;
 use Redis;
 use RedisException;
 
+use function bin2hex;
 use function getenv;
+use function random_bytes;
 
 /**
  * PHPUnit test case
@@ -22,16 +24,19 @@ use function getenv;
  */
 class RedisResourceManagerTest extends TestCase
 {
-    /**
-     * The resource manager
-     *
-     * @var RedisResourceManager
-     */
-    protected $resourceManager;
+    protected RedisResourceManager $resourceManager;
+    private string $resourceId;
 
     public function setUp(): void
     {
         $this->resourceManager = new RedisResourceManager();
+        $this->resourceId      = bin2hex(random_bytes(5));
+        $this->resourceManager->setResource($this->resourceId, [
+            'server' => [
+                'host' => 'localhost',
+            ],
+        ]);
+        parent::setUp();
     }
 
     /**
@@ -49,6 +54,7 @@ class RedisResourceManagerTest extends TestCase
         $this->assertEquals('testhost', $server['host']);
         $this->assertEquals(1234, $server['port']);
         $this->assertEquals('dummypass', $this->resourceManager->getPassword($dummyResId));
+        $this->assertEquals('dummyuser', $this->resourceManager->getUser($dummyResId));
     }
 
     /**
@@ -71,6 +77,48 @@ class RedisResourceManagerTest extends TestCase
         $this->assertEquals('testhost', $server['host']);
         $this->assertEquals(1234, $server['port']);
         $this->assertEquals('abcd1234', $this->resourceManager->getPassword($dummyResId2));
+        $this->assertEquals('dummyuser', $this->resourceManager->getUser($dummyResId2));
+    }
+
+    public function testSetServerWithPasswordInParametersAndNoUser(): void
+    {
+        $server      = 'redis://testhost:1234';
+        $dummyResId2 = '12345678901';
+        $resource    = [
+            'persistent_id' => 'my_connection_name',
+            'server'        => $server,
+            'password'      => 'abcd1234',
+        ];
+
+        $this->resourceManager->setResource($dummyResId2, $resource);
+
+        $server = $this->resourceManager->getServer($dummyResId2);
+
+        $this->assertEquals('testhost', $server['host']);
+        $this->assertEquals(1234, $server['port']);
+        $this->assertEquals('abcd1234', $this->resourceManager->getPassword($dummyResId2));
+        $this->assertEquals('', $this->resourceManager->getUser($dummyResId2));
+    }
+
+    public function testSetServerWithPasswordInParametersAndUser(): void
+    {
+        $server      = 'redis://testhost:1234';
+        $dummyResId2 = '12345678901';
+        $resource    = [
+            'persistent_id' => 'my_connection_name',
+            'server'        => $server,
+            'password'      => 'abcd1234',
+            'user'          => "dummyuser",
+        ];
+
+        $this->resourceManager->setResource($dummyResId2, $resource);
+
+        $server = $this->resourceManager->getServer($dummyResId2);
+
+        $this->assertEquals('testhost', $server['host']);
+        $this->assertEquals(1234, $server['port']);
+        $this->assertEquals('abcd1234', $this->resourceManager->getPassword($dummyResId2));
+        $this->assertEquals('dummyuser', $this->resourceManager->getUser($dummyResId2));
     }
 
     /**
@@ -216,7 +264,7 @@ class RedisResourceManagerTest extends TestCase
         $redis
             ->expects(self::atLeastOnce())
             ->method('auth')
-            ->with('foobar')
+            ->with(['foobar'])
             ->willThrowException(new RedisException('test'));
 
         $this->resourceManager->setResource(
@@ -229,6 +277,35 @@ class RedisResourceManagerTest extends TestCase
         );
         $this->expectException(RedisRuntimeException::class);
         $this->expectExceptionMessage('test');
+        $this->resourceManager->getResource('default');
+    }
+
+    public function testWillAuthenticateWithUserAndPassword(): void
+    {
+        $redis = $this->createMock(Redis::class);
+        $redis
+            ->method('connect')
+            ->willReturn(true);
+
+        $redis
+            ->method('info')
+            ->willReturn(['redis_version' => '1.2.3']);
+
+        $redis
+            ->expects(self::atLeastOnce())
+            ->method('auth')
+            ->with(['default', 'foobar']);
+
+        $this->resourceManager->setResource(
+            'default',
+            [
+                'resource' => $redis,
+                'server'   => 'whatever:6379',
+                'password' => 'foobar',
+                'user'     => 'default',
+            ]
+        );
+
         $this->resourceManager->getResource('default');
     }
 
@@ -269,7 +346,7 @@ class RedisResourceManagerTest extends TestCase
         $redis
             ->expects(self::atLeastOnce())
             ->method('auth')
-            ->with('secret')
+            ->with(['secret'])
             ->willThrowException(new RedisException('test'));
 
         $this->resourceManager->setResource(
@@ -308,5 +385,24 @@ class RedisResourceManagerTest extends TestCase
         $this->expectException(RedisRuntimeException::class);
         $this->expectExceptionMessage('test');
         $this->resourceManager->setDatabase('default', 0);
+    }
+
+    public function testGetSetPassword(): void
+    {
+        $pass = 'super secret';
+        $this->resourceManager->setPassword($this->resourceId, $pass);
+        $this->assertEquals(
+            $pass,
+            $this->resourceManager->getPassword($this->resourceId),
+            'Password was not correctly set'
+        );
+    }
+
+    public function testSocketConnection(): void
+    {
+        $socket = '/tmp/redis.sock';
+        $this->resourceManager->setServer($this->resourceId, $socket);
+        $normalized = $this->resourceManager->getServer($this->resourceId);
+        $this->assertEquals($socket, $normalized['host'], 'Host should equal to socket {$socket}');
     }
 }

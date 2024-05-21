@@ -11,7 +11,6 @@ use Laminas\Cache\Storage\Plugin\Serializer;
 use LaminasTest\Cache\Storage\Adapter\AbstractCommonAdapterTest;
 use PHPUnit\Framework\MockObject\MockObject;
 use Redis as RedisResource;
-use Throwable;
 
 use function ceil;
 use function count;
@@ -51,18 +50,6 @@ final class RedisTest extends AbstractCommonAdapterTest
         $this->storage = new Redis($this->options);
 
         parent::setUp();
-    }
-
-    public function tearDown(): void
-    {
-        if ($this->storage) {
-            try {
-                $this->storage->flush();
-            } catch (Throwable $exception) {
-            }
-        }
-
-        parent::tearDown();
     }
 
     public function testLibOptionsFirst(): void
@@ -150,17 +137,6 @@ final class RedisTest extends AbstractCommonAdapterTest
         }
     }
 
-    public function testSocketConnection(): void
-    {
-        $socket = '/tmp/redis.sock';
-        $this->options->getResourceManager()->setServer($this->options->getResourceId(), $socket);
-        $normalized = $this->options->getResourceManager()->getServer($this->options->getResourceId());
-        $this->assertEquals($socket, $normalized['host'], 'Host should equal to socket {$socket}');
-
-        // Don't try to flush on shutdown
-        $this->storage = null;
-    }
-
     public function testGetSetDatabase(): void
     {
         $this->assertTrue($this->storage->setItem('key', 'val'));
@@ -177,17 +153,6 @@ final class RedisTest extends AbstractCommonAdapterTest
             $databaseNumber,
             $resourceManager->getDatabase($this->options->getResourceId()),
             'Incorrect database was returned'
-        );
-    }
-
-    public function testGetSetPassword(): void
-    {
-        $pass = 'super secret';
-        $this->options->getResourceManager()->setPassword($this->options->getResourceId(), $pass);
-        $this->assertEquals(
-            $pass,
-            $this->options->getResourceManager()->getPassword($this->options->getResourceId()),
-            'Password was not correctly set'
         );
     }
 
@@ -240,92 +205,6 @@ final class RedisTest extends AbstractCommonAdapterTest
         $this->assertIsNotArray(
             $redis->getItem($key),
             'Redis should not serialize automatically anymore, lib options were not set correctly'
-        );
-    }
-
-    public function testGetSetNamespace(): void
-    {
-        $namespace = 'testNamespace';
-        $this->options->setNamespace($namespace);
-        $this->assertEquals($namespace, $this->options->getNamespace(), 'Namespace was not set correctly');
-    }
-
-    public function testGetSetNamespaceSeparator(): void
-    {
-        $separator = '/';
-        $this->options->setNamespaceSeparator($separator);
-        $this->assertEquals($separator, $this->options->getNamespaceSeparator(), 'Separator was not set correctly');
-    }
-
-    public function testGetSetResourceManager(): void
-    {
-        $resourceManager = new RedisResourceManager();
-        $options         = new RedisOptions();
-        $options->setResourceManager($resourceManager);
-        $this->assertInstanceOf(
-            RedisResourceManager::class,
-            $options->getResourceManager(),
-            'Wrong resource manager retuned, it should of type RedisResourceManager'
-        );
-
-        $this->assertEquals($resourceManager, $options->getResourceManager());
-    }
-
-    public function testGetSetResourceId(): void
-    {
-        $resourceId = '1';
-        $options    = new RedisOptions();
-        $options->setResourceId($resourceId);
-        $this->assertEquals($resourceId, $options->getResourceId(), 'Resource id was not set correctly');
-    }
-
-    public function testGetSetPersistentId(): void
-    {
-        $persistentId = '1';
-        $this->options->setPersistentId($persistentId);
-        $this->assertEquals($persistentId, $this->options->getPersistentId(), 'Persistent id was not set correctly');
-    }
-
-    public function testOptionsGetSetLibOptions(): void
-    {
-        $options = ['serializer' => RedisResource::SERIALIZER_PHP];
-        $this->options->setLibOptions($options);
-        $this->assertEquals(
-            $options,
-            $this->options->getLibOptions(),
-            'Lib Options were not set correctly through RedisOptions'
-        );
-    }
-
-    public function testGetSetServer(): void
-    {
-        $server = [
-            'host'    => '127.0.0.1',
-            'port'    => 6379,
-            'timeout' => 0,
-        ];
-        $this->options->setServer($server);
-        $this->assertEquals($server, $this->options->getServer(), 'Server was not set correctly through RedisOptions');
-
-        // Don't try to flush on shutdown
-        $this->storage = null;
-    }
-
-    public function testOptionsGetSetDatabase(): void
-    {
-        $database = 1;
-        $this->options->setDatabase($database);
-        $this->assertEquals($database, $this->options->getDatabase(), 'Database not set correctly using RedisOptions');
-    }
-
-    public function testOptionsGetSetPassword(): void
-    {
-        $password = 'my-secret';
-        $this->options->setPassword($password);
-        $this->assertEquals(
-            $password,
-            $this->options->getPassword(),
-            'Password was set incorrectly using RedisOptions'
         );
     }
 

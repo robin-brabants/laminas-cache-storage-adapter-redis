@@ -12,7 +12,7 @@ use RedisException as RedisResourceException;
 use ReflectionClass;
 use Traversable;
 
-use function array_merge;
+use function array_replace;
 use function assert;
 use function constant;
 use function defined;
@@ -22,6 +22,7 @@ use function is_string;
 use function method_exists;
 use function parse_url;
 use function str_replace;
+use function str_starts_with;
 use function strpos;
 use function strtoupper;
 use function trim;
@@ -29,10 +30,25 @@ use function trim;
 /**
  * This is a resource manager for redis
  */
+/**
+ * @psalm-type ResourceArrayShape = array{
+ *     persistent_id: string,
+ *     lib_options: array<non-negative-int,mixed>,
+ *     server: array{host: string, port: int, timeout: int},
+ *     user: string|null,
+ *     password: string|null,
+ *     database: int,
+ *     resource: RedisResource|null,
+ *     initialized: bool,
+ *     version: string
+ * }
+ */
 final class RedisResourceManager
 {
     /**
-     * Registered resources
+     *  Registered resources
+     *
+     * @var array<string,ResourceArrayShape> $resources
      */
     private array $resources = [];
 
@@ -95,7 +111,7 @@ final class RedisResourceManager
      * Get redis resource database
      *
      * @param string $id
-     * @return string
+     * @return int
      */
     public function getDatabase($id)
     {
@@ -111,7 +127,7 @@ final class RedisResourceManager
      * Get redis resource password
      *
      * @param string $id
-     * @return string
+     * @return string|null
      */
     public function getPassword($id)
     {
@@ -121,6 +137,19 @@ final class RedisResourceManager
 
         $resource = &$this->resources[$id];
         return $resource['password'];
+    }
+
+    /**
+     * Get redis resource user
+     */
+    public function getUser(string $id): ?string
+    {
+        if (! $this->hasResource($id)) {
+            throw new Exception\RuntimeException("No resource with id '{$id}'");
+        }
+
+        $resource = &$this->resources[$id];
+        return $resource['user'] ?? null;
     }
 
     /**
@@ -136,7 +165,7 @@ final class RedisResourceManager
             throw new Exception\RuntimeException("No resource with id '{$id}'");
         }
 
-        $resource = &$this->resources[$id];
+        $resource = $this->resources[$id];
         if ($resource['resource'] instanceof RedisResource) {
             //in case new server was set then connect
             if (! $resource['initialized']) {
@@ -144,13 +173,13 @@ final class RedisResourceManager
             }
 
             if (! $resource['version']) {
-                $redis = $resource['resource'];
-                assert($redis instanceof RedisResource);
+                $redis               = $resource['resource'];
                 $info                = $this->getRedisInfo($redis);
                 $resource['version'] = $info['redis_version'];
                 unset($info);
             }
 
+            $this->resources[$id] = $resource;
             return $resource['resource'];
         }
 
@@ -165,10 +194,9 @@ final class RedisResourceManager
             $redis->setOption($k, $v);
         }
 
-        $info                = $this->getRedisInfo($redis);
-        $resource['version'] = $info['redis_version'];
-        unset($info);
-        $this->resources[$id]['resource'] = $redis;
+        $info                 = $this->getRedisInfo($redis);
+        $resource['version']  = $info['redis_version'];
+        $this->resources[$id] = $resource;
         return $redis;
     }
 
@@ -252,25 +280,24 @@ final class RedisResourceManager
     /**
      * Extract password to be used on connection
      *
-     * @param mixed $resource
+     * @param ResourceArrayShape $resource
      * @param mixed $serverUri
-     * @return string|null
      */
-    protected function extractPassword($resource, $serverUri)
+    protected function extractPassword($resource, $serverUri): ?string
     {
         if (! empty($resource['password'])) {
             return $resource['password'];
         }
 
         if (! is_string($serverUri)) {
-            return;
+            return null;
         }
 
         // parse server from URI host{:?port}
         $server = trim($serverUri);
 
         if (strpos($server, '/') === 0) {
-            return;
+            return null;
         }
 
         //non unix domain socket connection
@@ -280,9 +307,37 @@ final class RedisResourceManager
     }
 
     /**
+     * Extract password to be used on connection
+     *
+     * @param ResourceArrayShape $resource
+     */
+    protected function extractUser(array $resource, array|string $serverUri): ?string
+    {
+        if (! empty($resource['user'])) {
+            return $resource['user'];
+        }
+
+        if (! is_string($serverUri)) {
+            return null;
+        }
+
+        // parse server from URI host{:?port}
+        $server = trim($serverUri);
+
+        if (str_starts_with($server, '/')) {
+            return null;
+        }
+
+        //non unix domain socket connection
+        $server = parse_url($server);
+
+        return $server['user'] ?? null;
+    }
+
+    /**
      * Connects to redis server
      *
-     * @param array $resource
+     * @param ResourceArrayShape $resource
      * @return void
      * @throws Exception\RuntimeException
      */
@@ -314,11 +369,13 @@ final class RedisResourceManager
                 throw new Exception\RuntimeException('Could not establish connection with Redis instance');
             }
 
-            $resource['initialized'] = true;
-            if ($resource['password']) {
-                $redis->auth($resource['password']);
+            if ($resource['user'] && $resource['password']) {
+                $redis->auth([$resource['user'], $resource['password']]);
+            } elseif ($resource['password']) {
+                $redis->auth([$resource['password']]);
             }
             $redis->select($resource['database']);
+            $resource['initialized'] = true;
         } catch (RedisResourceException $exception) {
             throw RedisRuntimeException::fromRedisException($exception, $redis);
         }
@@ -339,11 +396,12 @@ final class RedisResourceManager
             'persistent_id' => '',
             'lib_options'   => [],
             'server'        => [],
+            'user'          => '',
             'password'      => '',
             'database'      => 0,
             'resource'      => null,
             'initialized'   => false,
-            'version'       => 0,
+            'version'       => '',
         ];
         if (! $resource instanceof RedisResource) {
             if ($resource instanceof Traversable) {
@@ -354,13 +412,22 @@ final class RedisResourceManager
                 );
             }
 
-            $resource = array_merge($defaults, $resource);
+            /**
+             * Lets assume that the resource passed via RedisResourceManager#setResource is already providing
+             * options in the expected array shape format for now. This is how it worked since 2013 and therefore,
+             * for BC reasons, we can continue doing that until we refactor this in the next major.
+             *
+             * @var ResourceArrayShape $resource
+             */
+            $resource = array_replace($defaults, $resource);
+
             // normalize and validate params
             $this->normalizePersistentId($resource['persistent_id']);
 
             // #6495 note: order is important here, as `normalizeServer` applies destructive
             // transformations on $resource['server']
             $resource['password'] = $this->extractPassword($resource, $resource['server']);
+            $resource['user']     = $this->extractUser($resource, $resource['server']);
 
             $this->normalizeServer($resource['server']);
         } else {
@@ -369,13 +436,10 @@ final class RedisResourceManager
             //1) pinging server
             //2) checking undocumented property socket which is available only
             //after successful connect
-            $resource = array_merge(
-                $defaults,
-                [
-                    'resource'    => $resource,
-                    'initialized' => isset($resource->socket),
-                ]
-            );
+            $resource = array_replace($defaults, [
+                'resource'    => $resource,
+                'initialized' => isset($resource->socket),
+            ]);
         }
         $this->resources[$id] = $resource;
         return $this;
@@ -474,8 +538,7 @@ final class RedisResourceManager
         }
 
         $this->normalizeLibOptions($libOptions);
-        $redis = &$resource['resource'];
-        assert($redis instanceof RedisResource);
+        $redis = $resource['resource'];
 
         if (method_exists($redis, 'setOptions')) {
             $redis->setOptions($libOptions);
@@ -492,7 +555,7 @@ final class RedisResourceManager
      * Get Redis options
      *
      * @param string $id
-     * @return array
+     * @return array<int,mixed>
      * @throws Exception\RuntimeException
      */
     public function getLibOptions($id)
@@ -509,6 +572,10 @@ final class RedisResourceManager
             $constants  = $reflection->getConstants();
             foreach ($constants as $constName => $constValue) {
                 if (strpos($constName, 'OPT_') === 0) {
+                    assert(
+                        is_int($constValue),
+                        'Redis option constants are always pointing to an int-mask.',
+                    );
                     $libOptions[$constValue] = $resource['resource']->getOption($constValue);
                 }
             }
@@ -624,11 +691,16 @@ final class RedisResourceManager
         $resource             = &$this->resources[$id];
         $resource['password'] = $this->extractPassword($resource, $server);
 
+        $resource['user'] = $this->extractUser($resource, $server);
+
         if ($resource['resource'] instanceof RedisResource) {
             $resourceParams = ['server' => $server];
 
             if (! empty($resource['password'])) {
                 $resourceParams['password'] = $resource['password'];
+            }
+            if (! empty($resource['user'])) {
+                $resourceParams['user'] = $resource['user'];
             }
 
             $this->setResource($id, $resourceParams);
@@ -644,7 +716,7 @@ final class RedisResourceManager
      *
      * @param string $id
      * @param string $password
-     * @return RedisResource
+     * @return RedisResourceManager
      */
     public function setPassword($id, $password)
     {
@@ -677,7 +749,7 @@ final class RedisResourceManager
             ]);
         }
 
-        $resource = &$this->resources[$id];
+        $resource = $this->resources[$id];
         $redis    = $resource['resource'];
         if ($redis instanceof RedisResource && $resource['initialized']) {
             try {
@@ -688,6 +760,7 @@ final class RedisResourceManager
         }
 
         $resource['database'] = $database;
+        $this->resources[$id] = $resource;
 
         return $this;
     }
@@ -712,5 +785,24 @@ final class RedisResourceManager
         }
 
         return $info;
+    }
+
+    /**
+     * Set redis user
+     */
+    public function setUser(string $id, string $user): void
+    {
+        if (! $this->hasResource($id)) {
+            $this->setResource($id, [
+                'user' => $user,
+            ]);
+
+            return;
+        }
+
+        $resource                = $this->resources[$id];
+        $resource['user']        = $user;
+        $resource['initialized'] = false;
+        $this->resources[$id]    = $resource;
     }
 }
