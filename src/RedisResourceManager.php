@@ -173,9 +173,9 @@ final class RedisResourceManager
             }
 
             if (! $resource['version']) {
-                $redis                = $resource['resource'];
-                $info                 = $this->getRedisInfo($redis);
-                $resource['version']  = $info['redis_version'];
+                $redis               = $resource['resource'];
+                $info                = $this->getRedisInfo($redis);
+                $resource['version'] = $info['redis_version'];
                 unset($info);
             }
 
