@@ -218,10 +218,6 @@
       <code><![CDATA[$this->storage->getMetadata($key)['ttl']]]></code>
       <code><![CDATA[$this->storage->getMetadata($key)['ttl']]]></code>
     </PossiblyInvalidArrayAccess>
-    <PossiblyNullPropertyAssignmentValue>
-      <code>null</code>
-      <code>null</code>
-    </PossiblyNullPropertyAssignmentValue>
     <RedundantConditionGivenDocblockType>
       <code><![CDATA[$this->storage]]></code>
     </RedundantConditionGivenDocblockType>

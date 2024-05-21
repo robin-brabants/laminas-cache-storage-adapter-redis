@@ -10,7 +10,9 @@ use PHPUnit\Framework\TestCase;
 use Redis;
 use RedisException;
 
+use function bin2hex;
 use function getenv;
+use function random_bytes;
 
 /**
  * PHPUnit test case
@@ -22,16 +24,19 @@ use function getenv;
  */
 class RedisResourceManagerTest extends TestCase
 {
-    /**
-     * The resource manager
-     *
-     * @var RedisResourceManager
-     */
-    protected $resourceManager;
+    protected RedisResourceManager $resourceManager;
+    private string $resourceId;
 
     public function setUp(): void
     {
         $this->resourceManager = new RedisResourceManager();
+        $this->resourceId      = bin2hex(random_bytes(5));
+        $this->resourceManager->setResource($this->resourceId, [
+            'server' => [
+                'host' => 'localhost',
+            ],
+        ]);
+        parent::setUp();
     }
 
     /**
@@ -380,5 +385,24 @@ class RedisResourceManagerTest extends TestCase
         $this->expectException(RedisRuntimeException::class);
         $this->expectExceptionMessage('test');
         $this->resourceManager->setDatabase('default', 0);
+    }
+
+    public function testGetSetPassword(): void
+    {
+        $pass = 'super secret';
+        $this->resourceManager->setPassword($this->resourceId, $pass);
+        $this->assertEquals(
+            $pass,
+            $this->resourceManager->getPassword($this->resourceId),
+            'Password was not correctly set'
+        );
+    }
+
+    public function testSocketConnection(): void
+    {
+        $socket = '/tmp/redis.sock';
+        $this->resourceManager->setServer($this->resourceId, $socket);
+        $normalized = $this->resourceManager->getServer($this->resourceId);
+        $this->assertEquals($socket, $normalized['host'], 'Host should equal to socket {$socket}');
     }
 }
