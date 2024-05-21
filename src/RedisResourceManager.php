@@ -797,6 +797,8 @@ final class RedisResourceManager
             $this->setResource($id, [
                 'user' => $user,
             ]);
+
+            return;
         }
 
         $resource                = $this->resources[$id];
