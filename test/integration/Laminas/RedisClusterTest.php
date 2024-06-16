@@ -138,6 +138,8 @@ final class RedisClusterTest extends AbstractCommonAdapterTest
             RedisFromExtension::SERIALIZER_PHP,
             false
         );
+        $this->options = $this->storage->getOptions();
+
         // Clear storage before executing tests.
         $this->storage->flush();
 
