@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Laminas\Cache\Storage\Adapter;
 
 use Laminas\Cache\Exception;
+use Laminas\Cache\Storage\AbstractMetadataCapableAdapter;
 use Laminas\Cache\Storage\Adapter\Exception\MetadataErrorException;
 use Laminas\Cache\Storage\Adapter\Exception\RedisRuntimeException;
+use Laminas\Cache\Storage\Adapter\Redis\Metadata;
 use Laminas\Cache\Storage\Capabilities;
 use Laminas\Cache\Storage\ClearByNamespaceInterface;
 use Laminas\Cache\Storage\ClearByPrefixInterface;
@@ -15,57 +17,50 @@ use Redis as RedisFromExtension;
 use RedisCluster as RedisClusterFromExtension;
 use RedisClusterException;
 use RedisException;
-use stdClass;
 
 use function array_key_exists;
-use function array_values;
 use function assert;
 use function count;
-use function in_array;
 use function is_array;
 use function is_int;
-use function sprintf;
 use function version_compare;
 
 /**
- * @psalm-suppress PropertyNotSetInConstructor
+ * @template-extends AbstractMetadataCapableAdapter<RedisClusterOptions,Metadata>
+ * @psalm-import-type SupportedDataTypesArrayShape from Capabilities
  */
-final class RedisCluster extends AbstractAdapter implements
+final class RedisCluster extends AbstractMetadataCapableAdapter implements
     ClearByNamespaceInterface,
     ClearByPrefixInterface,
     FlushableInterface
 {
-    /** @var RedisClusterFromExtension|null */
-    private $resource;
+    private RedisClusterFromExtension|null $resource;
 
-    private ?string $namespacePrefix = null;
+    private string|null $namespacePrefix;
 
-    /** @var RedisClusterResourceManagerInterface|null */
-    private $resourceManager;
+    private RedisClusterResourceManagerInterface|null $resourceManager;
 
     /**
-     * @param null|iterable|RedisClusterOptions $options
-     * @psalm-param null|iterable<string,mixed>|RedisClusterOptions $options
+     * @param null|iterable<string,mixed>|RedisClusterOptions $options
      */
     public function __construct($options = null)
     {
+        $this->resourceManager = null;
+        $this->resource        = null;
+        $this->namespacePrefix = null;
         parent::__construct($options);
         $eventManager = $this->getEventManager();
-
         $eventManager->attach('option', function (): void {
-            $this->resource         = null;
-            $this->capabilities     = null;
-            $this->capabilityMarker = null;
-            $this->namespacePrefix  = null;
+            $this->resource        = null;
+            $this->capabilities    = null;
+            $this->namespacePrefix = null;
         });
     }
 
     /**
-     * @param  iterable|AdapterOptions $options
-     * @psalm-param iterable<string,mixed>|null|AdapterOptions $options
-     * @return self
+     * {@inheritDoc}
      */
-    public function setOptions($options)
+    public function setOptions(iterable|AdapterOptions $options): self
     {
         if (! $options instanceof RedisClusterOptions) {
             $options = new RedisClusterOptions($options);
@@ -76,6 +71,7 @@ final class RedisCluster extends AbstractAdapter implements
     }
 
     /**
+     * {@inheritDoc}
      * In RedisCluster, it is totally okay if just one primary server is being flushed.
      * If one or more primaries are not reachable, they will re-sync if they're coming back online.
      *
@@ -133,12 +129,11 @@ final class RedisCluster extends AbstractAdapter implements
     }
 
     /**
-     * @param string $namespace
+     * {@inheritDoc}
      */
-    public function clearByNamespace($namespace): bool
+    public function clearByNamespace(string $namespace): bool
     {
-        /** @psalm-suppress RedundantCast */
-        $namespace = (string) $namespace;
+        /** @psalm-suppress TypeDoesNotContainType Psalm type does not prevent from injecting empty string */
         if ($namespace === '') {
             throw new Exception\InvalidArgumentException('Invalid namespace provided');
         }
@@ -147,12 +142,11 @@ final class RedisCluster extends AbstractAdapter implements
     }
 
     /**
-     * @param string $prefix
+     * {@inheritDoc}
      */
-    public function clearByPrefix($prefix): bool
+    public function clearByPrefix(string $prefix): bool
     {
-        /** @psalm-suppress RedundantCast */
-        $prefix = (string) $prefix;
+        /** @psalm-suppress TypeDoesNotContainType Psalm type does not prevent from injecting empty string */
         if ($prefix === '') {
             throw new Exception\InvalidArgumentException('No prefix given');
         }
@@ -163,13 +157,13 @@ final class RedisCluster extends AbstractAdapter implements
     }
 
     /**
-     * @param string     $normalizedKey
-     * @param bool|null  $success
-     * @param mixed|null $casToken
-     * @return mixed|null
+     * {@inheritDoc}
      */
-    protected function internalGetItem(&$normalizedKey, &$success = null, &$casToken = null)
-    {
+    protected function internalGetItem(
+        string $normalizedKey,
+        bool|null &$success = null,
+        mixed &$casToken = null
+    ): mixed {
         $normalizedKeys = [$normalizedKey];
         $values         = $this->internalGetItems($normalizedKeys);
         if (! array_key_exists($normalizedKey, $values)) {
@@ -182,13 +176,13 @@ final class RedisCluster extends AbstractAdapter implements
         return $value;
     }
 
-    protected function internalGetItems(array &$normalizedKeys): array
+    /**
+     * {@inheritDoc}
+     */
+    protected function internalGetItems(array $normalizedKeys): array
     {
-        /** @var array<int,string> $normalizedKeys */
-        $normalizedKeys = array_values($normalizedKeys);
         $namespacedKeys = [];
         foreach ($normalizedKeys as $normalizedKey) {
-            /** @psalm-suppress RedundantCast */
             $namespacedKeys[] = $this->createNamespacedKey((string) $normalizedKey);
         }
 
@@ -224,7 +218,11 @@ final class RedisCluster extends AbstractAdapter implements
         return $result;
     }
 
-    private function createNamespacedKey(string $key): string
+    /**
+     * @param non-empty-string|int $key
+     * @return non-empty-string
+     */
+    private function createNamespacedKey(string|int $key): string
     {
         if ($this->namespacePrefix !== null) {
             return $this->namespacePrefix . $key;
@@ -241,10 +239,9 @@ final class RedisCluster extends AbstractAdapter implements
     }
 
     /**
-     * @param string $normalizedKey
-     * @param mixed  $value
+     * {@inheritDoc}
      */
-    protected function internalSetItem(&$normalizedKey, &$value): bool
+    protected function internalSetItem(string $normalizedKey, mixed $value): bool
     {
         $redis   = $this->getRedisResource();
         $options = $this->getOptions();
@@ -271,9 +268,9 @@ final class RedisCluster extends AbstractAdapter implements
     }
 
     /**
-     * @param string $normalizedKey
+     * {@inheritDoc}
      */
-    protected function internalRemoveItem(&$normalizedKey): bool
+    protected function internalRemoveItem(string $normalizedKey): bool
     {
         $redis = $this->getRedisResource();
 
@@ -285,9 +282,9 @@ final class RedisCluster extends AbstractAdapter implements
     }
 
     /**
-     * @param string $normalizedKey
+     * {@inheritDoc}
      */
-    protected function internalHasItem(&$normalizedKey): bool
+    protected function internalHasItem(string $normalizedKey): bool
     {
         $redis = $this->getRedisResource();
 
@@ -300,7 +297,10 @@ final class RedisCluster extends AbstractAdapter implements
         }
     }
 
-    protected function internalSetItems(array &$normalizedKeyValuePairs): array
+    /**
+     * {@inheritDoc}
+     */
+    protected function internalSetItems(array $normalizedKeyValuePairs): array
     {
         $redis = $this->getRedisResource();
         $ttl   = (int) $this->getOptions()->getTtl();
@@ -345,41 +345,34 @@ final class RedisCluster extends AbstractAdapter implements
         return $statuses;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     protected function internalGetCapabilities(): Capabilities
     {
         if ($this->capabilities !== null) {
             return $this->capabilities;
         }
 
-        $this->capabilityMarker = new stdClass();
         $redisVersion           = $this->getRedisVersion();
         $serializer             = $this->hasSerializationSupport();
         $redisVersionLessThanV2 = version_compare($redisVersion, '2.0', '<');
         $redisVersionLessThanV3 = version_compare($redisVersion, '3.0', '<');
-        $minTtl                 = $redisVersionLessThanV2 ? 0 : 1;
-        $supportedMetadata      = ! $redisVersionLessThanV2 ? ['ttl'] : [];
 
         $this->capabilities = new Capabilities(
-            $this,
-            $this->capabilityMarker,
-            [
-                'supportedDatatypes' => $this->getSupportedDatatypes($serializer),
-                'supportedMetadata'  => $supportedMetadata,
-                'minTtl'             => $minTtl,
-                'maxTtl'             => 0,
-                'staticTtl'          => true,
-                'ttlPrecision'       => 1,
-                'useRequestTime'     => false,
-                'maxKeyLength'       => $redisVersionLessThanV3 ? 255 : 512_000_000,
-                'namespaceIsPrefix'  => true,
-            ]
+            maxKeyLength: $redisVersionLessThanV3 ? 255 : 512_000_000,
+            ttlSupported: ! $redisVersionLessThanV2,
+            namespaceIsPrefix: true,
+            supportedDataTypes: $this->getSupportedDatatypes($serializer),
+            ttlPrecision: 1,
+            usesRequestTime: false,
         );
 
         return $this->capabilities;
     }
 
     /**
-     * @psalm-return array<string,mixed>
+     * @return SupportedDataTypesArrayShape
      */
     private function getSupportedDatatypes(bool $serializer): array
     {
@@ -463,65 +456,63 @@ final class RedisCluster extends AbstractAdapter implements
     }
 
     /**
-     * Internal method to get metadata of an item.
-     *
-     * @param  string $normalizedKey
-     * @return array|bool Metadata on success, false on failure
-     * @throws Exception\ExceptionInterface
+     * {@inheritDoc}
      */
-    protected function internalGetMetadata(&$normalizedKey)
+    protected function internalGetMetadata(string $normalizedKey): Metadata|null
     {
-        /** @psalm-suppress RedundantCastGivenDocblockType */
-        $namespacedKey = $this->createNamespacedKey((string) $normalizedKey);
+        $namespacedKey = $this->createNamespacedKey($normalizedKey);
         $redis         = $this->getRedisResource();
-        $metadata      = [];
-        $capabilities  = $this->internalGetCapabilities();
         try {
-            if (in_array('ttl', $capabilities->getSupportedMetadata(), true)) {
-                $ttl             = $this->detectTtlForKey($redis, $namespacedKey);
-                $metadata['ttl'] = $ttl;
-            }
-        } catch (MetadataErrorException $exception) {
-            return false;
+            $ttl = $this->detectTtlForKey($redis, $namespacedKey);
+            return new Metadata(ttl: $ttl);
+        } catch (MetadataErrorException) {
         } catch (RedisClusterException $exception) {
             throw $this->clusterException($exception, $redis);
         }
 
-        return $metadata;
+        return null;
     }
 
+    /**
+     * @param non-empty-string $namespacedKey
+     * @return int<-1,max>|null
+     */
     private function detectTtlForKey(RedisClusterFromExtension $redis, string $namespacedKey): ?int
     {
         $redisVersion = $this->getRedisVersion();
         $ttl          = $redis->ttl($namespacedKey);
 
-        // redis >= 2.8
-        // The command 'ttl' returns -2 if the item does not exist
-        // and -1 if the item has no associated expire
         if (version_compare($redisVersion, '2.8', '>=')) {
+            // redis >= 2.8
+            // The command 'ttl' returns -2 if the item does not exist
+            // and -1 if the item has no associated expire
+
             if ($ttl <= -2) {
                 throw new MetadataErrorException();
             }
 
-            return $ttl === -1 ? null : $ttl;
+            if ($ttl === -1) {
+                return Metadata::TTL_UNLIMITED;
+            }
+
+            return $ttl;
         }
 
-        // redis >= 2.6, < 2.8
-        // The command 'tttl' returns -1 if the item does not exist or the item has no associated expire
         if (version_compare($redisVersion, '2.6', '>=')) {
+            // redis >= 2.6, < 2.8
+            // The command 'ttl' returns -1 if the item does not exist or the item has no associated expire
             if ($ttl <= -1) {
                 if (! $this->internalHasItem($namespacedKey)) {
                     throw new MetadataErrorException();
                 }
 
-                return null;
+                return Metadata::TTL_UNLIMITED;
             }
 
             return $ttl;
         }
 
         // redis >= 2, < 2.6
-        // The command 'pttl' is not supported but 'ttl'
         // The command 'ttl' returns 0 if the item does not exist same as if the item is going to be expired
         // NOTE: In case of ttl=0 we return false because the item is going to be expired in a very near future
         //       and then doesn't exist any more
@@ -531,18 +522,13 @@ final class RedisCluster extends AbstractAdapter implements
                     throw new MetadataErrorException();
                 }
 
-                return null;
+                return Metadata::TTL_UNLIMITED;
             }
 
             return $ttl;
         }
 
-        throw new Exception\LogicException(
-            sprintf(
-                '%s must not be called for current redis version.',
-                __METHOD__
-            )
-        );
+        return null;
     }
 
     private function getRedisVersion(): string

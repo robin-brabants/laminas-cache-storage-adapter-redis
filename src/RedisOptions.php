@@ -18,7 +18,7 @@ final class RedisOptions extends AdapterOptions
      *
      * @var string[]
      */
-    protected $__prioritizedProperties__ = ['resource_manager', 'resource_id', 'server'];
+    protected array $__prioritizedProperties__ = ['resource_manager', 'resource_id', 'server'];
     // @codingStandardsIgnoreEnd
     /**
      * The namespace separator
@@ -36,21 +36,10 @@ final class RedisOptions extends AdapterOptions
     private string $resourceId = 'default';
 
     /**
-     * Set namespace.
-     *
-     * The option Redis::OPT_PREFIX will be used as the namespace.
-     * It can't be longer than 128 characters.
-     *
-     * @see AdapterOptions::setNamespace()
-     * @see RedisOptions::setPrefixKey()
-     *
-     * @param string $namespace Prefix for each key stored in redis
-     * @return RedisOptions
+     * {@inheritDoc}
      */
-    public function setNamespace($namespace)
+    public function setNamespace(string $namespace): self
     {
-        $namespace = (string) $namespace;
-
         if (128 < strlen($namespace)) {
             throw new Exception\InvalidArgumentException(sprintf(
                 '%s expects a prefix key of no longer than 128 characters',
@@ -58,55 +47,39 @@ final class RedisOptions extends AdapterOptions
             ));
         }
 
-        return parent::setNamespace($namespace);
-    }
-
-    /**
-     * Set namespace separator
-     *
-     * @param  string $namespaceSeparator
-     * @return RedisOptions Provides a fluent interface
-     */
-    public function setNamespaceSeparator($namespaceSeparator)
-    {
-        $namespaceSeparator = (string) $namespaceSeparator;
-        if ($this->namespaceSeparator !== $namespaceSeparator) {
-            $this->triggerOptionEvent('namespace_separator', $namespaceSeparator);
-            $this->namespaceSeparator = $namespaceSeparator;
-        }
+        parent::setNamespace($namespace);
         return $this;
     }
 
     /**
-     * Get namespace separator
-     *
-     * @return string
+     * @return RedisOptions Provides a fluent interface
      */
-    public function getNamespaceSeparator()
+    public function setNamespaceSeparator(string $namespaceSeparator): self
+    {
+        if ($this->namespaceSeparator !== $namespaceSeparator) {
+            $this->triggerOptionEvent('namespace_separator', $namespaceSeparator);
+            $this->namespaceSeparator = $namespaceSeparator;
+        }
+
+        return $this;
+    }
+
+    public function getNamespaceSeparator(): string
     {
         return $this->namespaceSeparator;
     }
 
-    /**
-     * Set the redis resource manager to use
-     *
-     * @return RedisOptions Provides a fluent interface
-     */
-    public function setResourceManager(?RedisResourceManager $resourceManager = null)
+    public function setResourceManager(?RedisResourceManager $resourceManager = null): self
     {
         if ($this->resourceManager !== $resourceManager) {
             $this->triggerOptionEvent('resource_manager', $resourceManager);
             $this->resourceManager = $resourceManager;
         }
+
         return $this;
     }
 
-    /**
-     * Get the redis resource manager
-     *
-     * @return RedisResourceManager
-     */
-    public function getResourceManager()
+    public function getResourceManager(): RedisResourceManager
     {
         if (! $this->resourceManager) {
             $this->resourceManager = new RedisResourceManager();
@@ -114,168 +87,100 @@ final class RedisOptions extends AdapterOptions
         return $this->resourceManager;
     }
 
-    /**
-     * Get the redis resource id
-     *
-     * @return string
-     */
-    public function getResourceId()
+    public function getResourceId(): string
     {
         return $this->resourceId;
     }
 
-    /**
-     * Set the redis resource id
-     *
-     * @param string $resourceId
-     * @return RedisOptions Provides a fluent interface
-     */
-    public function setResourceId($resourceId)
+    public function setResourceId(string $resourceId): self
     {
-        $resourceId = (string) $resourceId;
         if ($this->resourceId !== $resourceId) {
             $this->triggerOptionEvent('resource_id', $resourceId);
             $this->resourceId = $resourceId;
         }
+
         return $this;
     }
 
-    /**
-     * Get the persistent id
-     *
-     * @return string
-     */
-    public function getPersistentId()
+    public function getPersistentId(): string
     {
         return $this->getResourceManager()->getPersistentId($this->getResourceId());
     }
 
-    /**
-     * Set the persistent id
-     *
-     * @param string $persistentId
-     * @return RedisOptions Provides a fluent interface
-     */
-    public function setPersistentId($persistentId)
+    public function setPersistentId(string $persistentId): self
     {
         $this->triggerOptionEvent('persistent_id', $persistentId);
         $this->getResourceManager()->setPersistentId($this->getResourceId(), $persistentId);
         return $this;
     }
 
-     /**
-      * Set redis options
-      *
-      * @link http://github.com/nicolasff/phpredis#setoption
-      *
-      * @param array $libOptions
-      * @return RedisOptions Provides a fluent interface
-      */
-    public function setLibOptions(array $libOptions)
+    public function setLibOptions(array $libOptions): self
     {
         $this->triggerOptionEvent('lib_option', $libOptions);
         $this->getResourceManager()->setLibOptions($this->getResourceId(), $libOptions);
         return $this;
     }
 
-    /**
-     * Get redis options
-     *
-     * @link http://github.com/nicolasff/phpredis#setoption
-     *
-     * @return array
-     */
-    public function getLibOptions()
+    public function getLibOptions(): array
     {
         return $this->getResourceManager()->getLibOptions($this->getResourceId());
     }
 
     /**
-     * Set server
-     *
      * Server can be described as follows:
      * - URI:   /path/to/sock.sock
      * - Assoc: array('host' => <host>[, 'port' => <port>[, 'timeout' => <timeout>]])
      * - List:  array(<host>[, <port>, [, <timeout>]])
-     *
-     * @param string|array $server
-     * @return RedisOptions Provides a fluent interface
      */
-    public function setServer($server)
+    public function setServer(string|array $server): self
     {
         $this->getResourceManager()->setServer($this->getResourceId(), $server);
         return $this;
     }
 
     /**
-     * Get server
-     *
      * @return array array('host' => <host>[, 'port' => <port>[, 'timeout' => <timeout>]])
      */
-    public function getServer()
+    public function getServer(): array
     {
         return $this->getResourceManager()->getServer($this->getResourceId());
     }
 
-    /**
-     * Set resource database number
-     *
-     * @param int $database Database number
-     * @return RedisOptions Provides a fluent interface
-     */
-    public function setDatabase($database)
+    public function setDatabase(int $database): self
     {
         $this->getResourceManager()->setDatabase($this->getResourceId(), $database);
         return $this;
     }
 
-    /**
-     * Get resource database number
-     *
-     * @return int Database number
-     */
-    public function getDatabase()
+    public function getDatabase(): int
     {
         return $this->getResourceManager()->getDatabase($this->getResourceId());
     }
 
-    /**
-     * Set resource password
-     *
-     * @param string $password Password
-     * @return RedisOptions Provides a fluent interface
-     */
-    public function setPassword($password)
+    public function setPassword(string $password): self
     {
         $this->getResourceManager()->setPassword($this->getResourceId(), $password);
         return $this;
     }
 
-    /**
-     * Get resource password
-     *
-     * @return string|null
-     */
-    public function getPassword()
+    public function getPassword(): string|null
     {
         return $this->getResourceManager()->getPassword($this->getResourceId());
     }
 
     /**
-     * Set resource user
-     *
      * @param string $user ACL User
-     * @return RedisOptions Provides a fluent interface
      */
     public function setUser(string $user): RedisOptions
     {
+        if ($user === '') {
+            return $this;
+        }
+
         $this->getResourceManager()->setUser($this->getResourceId(), $user);
         return $this;
     }
 
-    /**
-     * Get resource user
-     */
     public function getUser(): ?string
     {
         return $this->getResourceManager()->getUser($this->getResourceId());

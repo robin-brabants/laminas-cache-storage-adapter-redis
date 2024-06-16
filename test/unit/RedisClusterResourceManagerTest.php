@@ -8,6 +8,8 @@ use Laminas\Cache\Storage\Adapter\AbstractAdapter;
 use Laminas\Cache\Storage\Adapter\RedisClusterOptions;
 use Laminas\Cache\Storage\Adapter\RedisClusterResourceManager;
 use Laminas\Cache\Storage\Plugin\Serializer;
+use Laminas\Serializer\AdapterPluginManager;
+use Laminas\ServiceManager\ServiceManager;
 use PHPUnit\Framework\TestCase;
 use Redis;
 use SplObjectStorage;
@@ -36,7 +38,7 @@ final class RedisClusterResourceManagerTest extends TestCase
         $registry
             ->expects($this->any())
             ->method('current')
-            ->willReturn(new Serializer());
+            ->willReturn(new Serializer(new AdapterPluginManager(new ServiceManager())));
 
         $registry
             ->expects($this->once())
@@ -69,7 +71,7 @@ final class RedisClusterResourceManagerTest extends TestCase
     /**
      * @psalm-return array<string,array{0:RedisClusterOptions}>
      */
-    public function serializationSupportOptionsProvider(): array
+    public static function serializationSupportOptionsProvider(): array
     {
         return [
             'php-serialize'      => [

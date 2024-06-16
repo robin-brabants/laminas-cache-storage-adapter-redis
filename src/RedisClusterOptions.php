@@ -86,7 +86,7 @@ final class RedisClusterOptions extends AdapterOptions
     /**
      * {@inheritDoc}
      */
-    public function setFromArray($options)
+    public function setFromArray($options): self
     {
         if ($options instanceof AbstractOptions) {
             $options = $options->toArray();
@@ -105,7 +105,8 @@ final class RedisClusterOptions extends AdapterOptions
             $options['ssl_context'] = $sslContext;
         }
 
-        return parent::setFromArray($options);
+        parent::setFromArray($options);
+        return $this;
     }
 
     public function setTimeout(float $timeout): void
