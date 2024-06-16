@@ -47,6 +47,7 @@ final class RedisClusterOptionsFromIni
             assert(is_string($name) && $name !== '');
             Assert::isNonEmptyList($seeds);
             Assert::allStringNotEmpty($seeds);
+            $seedsByName[$name] = $seeds;
         }
         $this->seedsByName = $seedsByName;
 
