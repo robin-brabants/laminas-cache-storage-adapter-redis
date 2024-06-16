@@ -212,7 +212,7 @@ final class RedisTest extends AbstractCommonAdapterTest
         $this->storage->setItem($key, 'val');
         $metadata = $this->storage->getMetadata($key);
         self::assertNotNull($metadata);
-        self::assertEquals(Redis\Metadata::TTL_UNLIMITED, $metadata->ttl);
+        self::assertEquals(Redis\Metadata::TTL_UNLIMITED, $metadata->remainingTimeToLive);
 
         // touch with a specific TTL will add this TTL
         $ttl = 1000;
@@ -220,7 +220,7 @@ final class RedisTest extends AbstractCommonAdapterTest
         self::assertTrue($this->storage->touchItem($key));
         $metadata = $this->storage->getMetadata($key);
         self::assertNotNull($metadata);
-        self::assertEquals($ttl, $metadata->ttl);
+        self::assertEquals($ttl, $metadata->remainingTimeToLive);
     }
 
     public function testHasItemReturnsFalseIfRedisExistsReturnsZero(): void

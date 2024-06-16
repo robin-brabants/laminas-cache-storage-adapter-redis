@@ -9,10 +9,10 @@ final class Metadata
     public const TTL_UNLIMITED = -1;
 
     /**
-     * @param int<-1,max>|null $ttl Depending on the redis version, ttl might be `null`
+     * @param int<-1,max>|null $remainingTimeToLive Depending on the redis version, ttl might be `null`
      */
     public function __construct(
-        public readonly int|null $ttl,
+        public readonly int|null $remainingTimeToLive,
     ) {
     }
 }

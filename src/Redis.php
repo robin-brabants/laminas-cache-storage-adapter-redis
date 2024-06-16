@@ -455,12 +455,12 @@ final class Redis extends AbstractMetadataCapableAdapter implements
                 }
 
                 if ($pttl === -1) {
-                    return new Metadata(ttl: Metadata::TTL_UNLIMITED);
+                    return new Metadata(remainingTimeToLive: Metadata::TTL_UNLIMITED);
                 }
 
                 $ttl = (int) round($pttl / 1000);
                 Assert::natural($ttl);
-                return new Metadata(ttl: $ttl);
+                return new Metadata(remainingTimeToLive: $ttl);
             }
 
             if (version_compare($redisVersion, '2.6', '>=')) {
@@ -472,12 +472,12 @@ final class Redis extends AbstractMetadataCapableAdapter implements
                         return null;
                     }
 
-                    return new Metadata(ttl: Metadata::TTL_UNLIMITED);
+                    return new Metadata(remainingTimeToLive: Metadata::TTL_UNLIMITED);
                 }
 
                 $ttl = (int) round($pttl / 1000);
                 Assert::natural($ttl);
-                return new Metadata(ttl: $ttl);
+                return new Metadata(remainingTimeToLive: $ttl);
             }
 
             if (version_compare($redisVersion, '2', '>=')) {
@@ -492,11 +492,11 @@ final class Redis extends AbstractMetadataCapableAdapter implements
                         return null;
                     }
 
-                    return new Metadata(ttl: Metadata::TTL_UNLIMITED);
+                    return new Metadata(remainingTimeToLive: Metadata::TTL_UNLIMITED);
                 }
 
                 Assert::natural($ttl);
-                return new Metadata(ttl: $ttl);
+                return new Metadata(remainingTimeToLive: $ttl);
             } elseif (! $this->internalHasItem($normalizedKey)) {
                 return null;
             }
@@ -504,7 +504,7 @@ final class Redis extends AbstractMetadataCapableAdapter implements
             throw new Exception\RuntimeException($redis->getLastError() ?? $e->getMessage(), $e->getCode(), $e);
         }
 
-        return new Metadata(ttl: null);
+        return new Metadata(remainingTimeToLive: null);
     }
 
     /**
