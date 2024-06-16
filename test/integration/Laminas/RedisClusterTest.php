@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace LaminasTest\Cache\Storage\Adapter\Laminas;
 
+use Laminas\Cache\Storage\Adapter\Redis\Metadata;
 use Laminas\Cache\Storage\Adapter\RedisCluster;
 use Laminas\Cache\Storage\Adapter\RedisClusterOptions;
 use Laminas\Cache\Storage\Adapter\RedisClusterOptionsFromIni;
@@ -146,8 +147,23 @@ final class RedisClusterTest extends AbstractCommonAdapterTest
         parent::setUp();
     }
 
-    public function testOptionsFluentInterface(): void
+    public function testTouchItem(): void
     {
-        self::markTestSkipped('Redis cluster specific options do not provide fluent interface!');
+        $key = 'key';
+
+        // no TTL
+        $this->storage->getOptions()->setTtl(0);
+        $this->storage->setItem($key, 'val');
+        $metadata = $this->storage->getMetadata($key);
+        self::assertNotNull($metadata);
+        self::assertEquals(Metadata::TTL_UNLIMITED, $metadata->remainingTimeToLive);
+
+        // touch with a specific TTL will add this TTL
+        $ttl = 1000;
+        $this->storage->getOptions()->setTtl($ttl);
+        self::assertTrue($this->storage->touchItem($key));
+        $metadata = $this->storage->getMetadata($key);
+        self::assertNotNull($metadata);
+        self::assertEquals($ttl, $metadata->remainingTimeToLive);
     }
 }

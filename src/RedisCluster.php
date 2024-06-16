@@ -464,7 +464,7 @@ final class RedisCluster extends AbstractMetadataCapableAdapter implements
         $redis         = $this->getRedisResource();
         try {
             $ttl = $this->detectTtlForKey($redis, $namespacedKey);
-            return new Metadata(ttl: $ttl);
+            return new Metadata(remainingTimeToLive: $ttl);
         } catch (MetadataErrorException) {
         } catch (RedisClusterException $exception) {
             throw $this->clusterException($exception, $redis);
