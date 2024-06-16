@@ -44,7 +44,7 @@ final class RedisClusterOptionsFromIniTest extends TestCase
     /**
      * @psalm-return non-empty-array<non-empty-string,array{0:non-empty-string,1:non-empty-string,2:non-empty-list<non-empty-string>}>
      */
-    public function seedsByNameProvider(): array
+    public static function seedsByNameProvider(): array
     {
         return [
             'simple'         => [

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Laminas\Cache\Storage\Adapter;
 
 use Laminas\Cache\Exception\RuntimeException;
+use Laminas\Cache\Storage\Adapter\Exception\InvalidRedisClusterConfigurationException;
 use Laminas\Cache\Storage\Adapter\Exception\RedisRuntimeException;
 use Laminas\Cache\Storage\Adapter\RedisClusterOptions;
 use Laminas\Cache\Storage\Plugin\PluginInterface;
@@ -13,6 +14,7 @@ use Laminas\Cache\Storage\PluginCapableInterface;
 use Redis as RedisFromExtension;
 use RedisCluster as RedisClusterFromExtension;
 use RedisClusterException;
+use Throwable;
 
 use function array_key_exists;
 use function assert;
@@ -119,7 +121,14 @@ final class RedisClusterResourceManager implements RedisClusterResourceManagerIn
         string $fallbackPassword,
         ?SslContext $sslContext
     ): RedisClusterFromExtension {
-        $options     = new RedisClusterOptionsFromIni();
+        try {
+            $options = new RedisClusterOptionsFromIni();
+        } catch (InvalidRedisClusterConfigurationException $exception) {
+            throw $exception;
+        } catch (Throwable $throwable) {
+            throw new InvalidRedisClusterConfigurationException($throwable->getMessage(), previous: $throwable);
+        }
+
         $seeds       = $options->getSeeds($name);
         $timeout     = $options->getTimeout($name, $fallbackTimeout);
         $readTimeout = $options->getReadTimeout($name, $fallbackReadTimeout);

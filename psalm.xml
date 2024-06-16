@@ -50,6 +50,11 @@
                 <directory name="*"/>
             </errorLevel>
         </RedundantCastGivenDocblockType>
+        <RiskyTruthyFalsyComparison>
+            <errorLevel type="suppress">
+                <directory name="test/"/>
+            </errorLevel>
+        </RiskyTruthyFalsyComparison>
     </issueHandlers>
     <plugins>
         <pluginClass class="Psalm\PhpUnitPlugin\Plugin"/>

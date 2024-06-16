@@ -161,7 +161,7 @@ final class RedisClusterOptionsTest extends AbstractAdapterOptionsTest
     /**
      * @psalm-return Generator<non-empty-string,array{0:non-empty-string,1:positive-int}>
      */
-    public function redisClusterOptionConstants(): Generator
+    public static function redisClusterOptionConstants(): Generator
     {
         $reflection = new ReflectionClass(RedisFromExtension::class);
 
@@ -196,7 +196,7 @@ final class RedisClusterOptionsTest extends AbstractAdapterOptionsTest
     /**
      * @psalm-return Generator<non-empty-string,array{0:non-empty-string,1:positive-int}>
      */
-    public function declaredLibraryOptionConstants(): Generator
+    public static function declaredLibraryOptionConstants(): Generator
     {
         $reflection = new ReflectionClass(RedisClusterOptions::class);
 

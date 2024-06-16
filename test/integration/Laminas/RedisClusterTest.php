@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace LaminasTest\Cache\Storage\Adapter\Laminas;
 
-use Laminas\Cache\Storage\Adapter\AbstractAdapter;
 use Laminas\Cache\Storage\Adapter\RedisCluster;
 use Laminas\Cache\Storage\Adapter\RedisClusterOptions;
 use Laminas\Cache\Storage\Adapter\RedisClusterOptionsFromIni;
@@ -55,7 +54,7 @@ final class RedisClusterTest extends AbstractCommonAdapterTest
         ]);
 
         $capabilities = $storage->getCapabilities();
-        $dataTypes    = $capabilities->getSupportedDatatypes();
+        $dataTypes    = $capabilities->supportedDataTypes;
         $this->assertEquals([
             'NULL'     => true,
             'boolean'  => true,
@@ -68,7 +67,7 @@ final class RedisClusterTest extends AbstractCommonAdapterTest
         ], $dataTypes);
     }
 
-    private function removeSerializer(AbstractAdapter $storage): void
+    private function removeSerializer(RedisCluster $storage): void
     {
         foreach ($storage->getPluginRegistry() as $plugin) {
             if (! $plugin instanceof Serializer) {
@@ -90,7 +89,7 @@ final class RedisClusterTest extends AbstractCommonAdapterTest
         ]);
 
         $capabilities = $storage->getCapabilities();
-        $dataTypes    = $capabilities->getSupportedDatatypes();
+        $dataTypes    = $capabilities->supportedDataTypes;
         $this->assertEquals([
             'NULL'     => 'string',
             'boolean'  => 'string',
@@ -139,19 +138,12 @@ final class RedisClusterTest extends AbstractCommonAdapterTest
             RedisFromExtension::SERIALIZER_PHP,
             false
         );
+        $this->options = $this->storage->getOptions();
+
         // Clear storage before executing tests.
         $this->storage->flush();
 
         parent::setUp();
-    }
-
-    /**
-     * Remove the property cache as we do want to create a new instance for the next test.
-     */
-    protected function tearDown(): void
-    {
-        $this->storage = null;
-        parent::tearDown();
     }
 
     public function testOptionsFluentInterface(): void

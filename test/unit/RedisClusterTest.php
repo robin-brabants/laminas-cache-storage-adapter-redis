@@ -32,7 +32,7 @@ final class RedisClusterTest extends TestCase
             ->willReturn('5.0.0');
 
         $capabilities = $adapter->getCapabilities();
-        $datatypes    = $capabilities->getSupportedDatatypes();
+        $datatypes    = $capabilities->supportedDataTypes;
         $this->assertEquals([
             'NULL'     => true,
             'boolean'  => true,
@@ -67,7 +67,7 @@ final class RedisClusterTest extends TestCase
             ->willReturn('5.0.0');
 
         $capabilities = $adapter->getCapabilities();
-        $datatypes    = $capabilities->getSupportedDatatypes();
+        $datatypes    = $capabilities->supportedDataTypes;
         $this->assertEquals([
             'NULL'     => 'string',
             'boolean'  => 'string',

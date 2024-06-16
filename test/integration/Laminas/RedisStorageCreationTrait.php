@@ -7,6 +7,8 @@ namespace LaminasTest\Cache\Storage\Adapter\Laminas;
 use Laminas\Cache\Storage\Adapter\Redis;
 use Laminas\Cache\Storage\Adapter\RedisOptions;
 use Laminas\Cache\Storage\Plugin\Serializer;
+use Laminas\Serializer\AdapterPluginManager;
+use Laminas\ServiceManager\ServiceManager;
 use Redis as RedisFromExtension;
 
 trait RedisStorageCreationTrait
@@ -35,7 +37,7 @@ trait RedisStorageCreationTrait
 
         $storage = new Redis(new RedisOptions($options));
         if ($serializerOption === RedisFromExtension::SERIALIZER_NONE && $serializerPlugin) {
-            $storage->addPlugin(new Serializer());
+            $storage->addPlugin(new Serializer(new AdapterPluginManager(new ServiceManager())));
         }
 
         return $storage;
