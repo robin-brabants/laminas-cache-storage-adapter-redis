@@ -25,6 +25,10 @@ final class RedisClusterOptions extends AdapterOptions
         self::OPT_REPLY_LITERAL,
         self::OPT_COMPRESSION_LEVEL,
         self::OPT_NULL_MULTIBULK_AS_NULL,
+        self::OPT_MAX_RETRIES,
+        self::OPT_BACKOFF_ALGORITHM,
+        self::OPT_BACKOFF_BASE,
+        self::OPT_BACKOFF_CAP,
     ];
 
     public const OPT_SERIALIZER             = 1;
@@ -37,6 +41,10 @@ final class RedisClusterOptions extends AdapterOptions
     public const OPT_REPLY_LITERAL          = 8;
     public const OPT_COMPRESSION_LEVEL      = 9;
     public const OPT_NULL_MULTIBULK_AS_NULL = 10;
+    public const OPT_MAX_RETRIES            = 11;
+    public const OPT_BACKOFF_ALGORITHM      = 12;
+    public const OPT_BACKOFF_BASE           = 13;
+    public const OPT_BACKOFF_CAP            = 14;
 
     private string $namespaceSeparator = ':';
 
