@@ -458,7 +458,7 @@ final class Redis extends AbstractMetadataCapableAdapter implements
                     return new Metadata(ttl: Metadata::TTL_UNLIMITED);
                 }
 
-                $ttl = $pttl / 1000;
+                $ttl = (int) round($pttl / 1000);
                 Assert::natural($ttl);
                 return new Metadata(ttl: $ttl);
             }
