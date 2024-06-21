@@ -69,8 +69,7 @@ final class RedisClusterOptions extends AdapterOptions
     private ?SslContext $sslContext = null;
 
     /**
-     * @param iterable|null|AdapterOptions $options
-     * @psalm-param iterable<string,mixed>|null|AdapterOptions $options
+     * @param iterable<string,mixed>|null|AdapterOptions $options
      */
     public function __construct($options = null)
     {
@@ -243,10 +242,8 @@ final class RedisClusterOptions extends AdapterOptions
 
     /**
      * @psalm-param RedisClusterOptions::OPT_* $option
-     * @param mixed $default
-     * @return mixed
      */
-    public function getLibOption(int $option, $default = null)
+    public function getLibOption(int $option, mixed $default = null): mixed
     {
         return $this->libOptions[$option] ?? $default;
     }

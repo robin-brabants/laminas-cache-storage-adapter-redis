@@ -67,12 +67,12 @@ final class RedisClusterOptionsTest extends AbstractAdapterOptionsTest
             'password'      => 'secret',
         ]);
 
-        $this->assertEquals('foo', $options->getName());
-        $this->assertEquals(1.0, $options->getTimeout());
-        $this->assertEquals(2.0, $options->getReadTimeout());
-        $this->assertEquals(false, $options->isPersistent());
-        $this->assertEquals('1.0', $options->getRedisVersion());
-        $this->assertEquals('secret', $options->getPassword());
+        self::assertEquals('foo', $options->getName());
+        self::assertEquals(1.0, $options->getTimeout());
+        self::assertEquals(2.0, $options->getReadTimeout());
+        self::assertEquals(false, $options->isPersistent());
+        self::assertEquals('1.0', $options->getRedisVersion());
+        self::assertEquals('secret', $options->getPassword());
     }
 
     public function testCanHandleOptionsWithSeeds(): void
@@ -86,12 +86,12 @@ final class RedisClusterOptionsTest extends AbstractAdapterOptionsTest
             'password'      => 'secret',
         ]);
 
-        $this->assertEquals(['localhost:1234'], $options->getSeeds());
-        $this->assertEquals(1.0, $options->getTimeout());
-        $this->assertEquals(2.0, $options->getReadTimeout());
-        $this->assertEquals(false, $options->isPersistent());
-        $this->assertEquals('1.0', $options->getRedisVersion());
-        $this->assertEquals('secret', $options->getPassword());
+        self::assertEquals(['localhost:1234'], $options->getSeeds());
+        self::assertEquals(1.0, $options->getTimeout());
+        self::assertEquals(2.0, $options->getReadTimeout());
+        self::assertEquals(false, $options->isPersistent());
+        self::assertEquals('1.0', $options->getRedisVersion());
+        self::assertEquals('secret', $options->getPassword());
     }
 
     public function testWillDetectSeedsAndNodenameConfiguration(): void

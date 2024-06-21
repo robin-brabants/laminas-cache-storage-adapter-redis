@@ -6,21 +6,21 @@ namespace Laminas\Cache\Storage\Adapter;
 
 use Laminas\Cache\Exception;
 use Laminas\Cache\Storage\AbstractMetadataCapableAdapter;
+use Laminas\Cache\Storage\Adapter\Exception\RedisRuntimeException;
 use Laminas\Cache\Storage\Adapter\Redis\Metadata;
-use Laminas\Cache\Storage\Adapter\RedisResourceManager;
 use Laminas\Cache\Storage\Capabilities;
 use Laminas\Cache\Storage\ClearByNamespaceInterface;
 use Laminas\Cache\Storage\ClearByPrefixInterface;
 use Laminas\Cache\Storage\FlushableInterface;
 use Laminas\Cache\Storage\TotalSpaceCapableInterface;
-use Redis as RedisResource;
-use RedisException as RedisResourceException;
+use Redis as RedisFromExtension;
+use RedisException as RedisFromExtensionException;
 use Webmozart\Assert\Assert;
 
-use function array_combine;
-use function array_filter;
 use function array_key_exists;
 use function assert;
+use function is_array;
+use function is_string;
 use function round;
 use function version_compare;
 
@@ -33,25 +33,14 @@ final class Redis extends AbstractMetadataCapableAdapter implements
     FlushableInterface,
     TotalSpaceCapableInterface
 {
-    /**
-     * Has this instance be initialized
-     */
-    private bool $initialized = false;
+    private RedisFromExtension|null $resource;
 
-    /**
-     * The redis resource manager
-     */
-    private ?RedisResourceManager $resourceManager = null;
-
-    /**
-     * The redis resource id
-     */
-    private ?string $resourceId = null;
+    private RedisResourceManagerInterface|null $resourceManager;
 
     /**
      * The namespace prefix
      */
-    private string $namespacePrefix = '';
+    private string|null $namespacePrefix;
 
     /**
      * @param null|iterable<string,mixed>|RedisOptions $options
@@ -59,38 +48,33 @@ final class Redis extends AbstractMetadataCapableAdapter implements
     public function __construct(iterable|RedisOptions|null $options = null)
     {
         parent::__construct($options);
-
-        // reset initialized flag on update option(s)
-        $initialized = &$this->initialized;
-        $this->getEventManager()->attach('option', static function () use (&$initialized): void {
-            $initialized = false;
+        $this->resourceManager = null;
+        $this->resource        = null;
+        $this->namespacePrefix = null;
+        $this->getEventManager()->attach('option', function (): void {
+            $this->resource        = null;
+            $this->namespacePrefix = null;
         });
     }
 
-    private function getRedisResource(): RedisResource
+    private function getRedisResource(): RedisFromExtension
     {
-        if ($this->initialized) {
-            return $this->resourceManager->getResource($this->resourceId);
+        if ($this->resource !== null) {
+            return $this->resource;
         }
 
-        $options = $this->getOptions();
-
-        // get resource manager and resource id
-        $this->resourceManager = $options->getResourceManager();
-        $this->resourceId      = $options->getResourceId();
+        $resourceManager = $this->getResourceManager();
+        $this->resource  = $resourceManager->getResource();
+        $options         = $this->getOptions();
 
         // init namespace prefix
-        $namespace = $options->getNamespace();
+        $namespace             = $options->getNamespace();
+        $this->namespacePrefix = '';
         if ($namespace !== '') {
             $this->namespacePrefix = $namespace . $options->getNamespaceSeparator();
-        } else {
-            $this->namespacePrefix = '';
         }
 
-        // update initialized flag
-        $this->initialized = true;
-
-        return $this->resourceManager->getResource($this->resourceId);
+        return $this->resource;
     }
 
     /**
@@ -119,6 +103,33 @@ final class Redis extends AbstractMetadataCapableAdapter implements
     }
 
     /**
+     * @psalm-api
+     * @return non-empty-string|null
+     */
+    public function getPersistentId(bool $update = false): ?string
+    {
+        $options = $this->getOptions();
+
+        if (! $options->isPersistent()) {
+            return null;
+        }
+
+        if ($update === false) {
+            $persistentId = $options->getPersistentId();
+            if ($persistentId !== null) {
+                return $persistentId;
+            }
+        }
+
+        $persistentId = $this->getRedisResource()->getPersistentID();
+        if (! is_string($persistentId) || $persistentId === '') {
+            return null;
+        }
+
+        return $persistentId;
+    }
+
+    /**
      * {@inheritDoc}
      */
     protected function internalGetItem(
@@ -126,20 +137,15 @@ final class Redis extends AbstractMetadataCapableAdapter implements
         bool|null &$success = null,
         mixed &$casToken = null
     ): mixed {
-        $redis = $this->getRedisResource();
-        try {
-            $value = $redis->get($this->namespacePrefix . $normalizedKey);
-        } catch (RedisResourceException $e) {
-            throw new Exception\RuntimeException($redis->getLastError() ?? $e->getMessage(), $e->getCode(), $e);
-        }
-
-        if ($value === false) {
+        $normalizedKeys = [$normalizedKey];
+        $values         = $this->internalGetItems($normalizedKeys);
+        if (! array_key_exists($normalizedKey, $values)) {
             $success = false;
             return null;
         }
 
-        $success  = true;
-        $casToken = $value;
+        $value   = $casToken = $values[$normalizedKey];
+        $success = true;
         return $value;
     }
 
@@ -148,23 +154,38 @@ final class Redis extends AbstractMetadataCapableAdapter implements
      */
     protected function internalGetItems(array $normalizedKeys): array
     {
-        $redis = $this->getRedisResource();
-
         $namespacedKeys = [];
         foreach ($normalizedKeys as $normalizedKey) {
-            $namespacedKeys[] = $this->namespacePrefix . $normalizedKey;
+            $namespacedKeys[] = $this->createNamespacedKey($normalizedKey);
         }
 
+        $redis = $this->getRedisResource();
+
         try {
-            $results = $redis->mGet($namespacedKeys);
-        } catch (RedisResourceException $e) {
-            throw new Exception\RuntimeException($redis->getLastError() ?? $e->getMessage(), $e->getCode(), $e);
+            $resultsByIndex = $redis->mget($namespacedKeys);
+        } catch (RedisFromExtensionException $exception) {
+            throw RedisRuntimeException::fromRedisException(
+                $exception,
+                $redis
+            );
         }
-        //combine the key => value pairs and remove all missing values
-        return array_filter(
-            array_combine($normalizedKeys, $results),
-            static fn($value): bool => $value !== false
-        );
+
+        if (! is_array($resultsByIndex)) {
+            throw RedisRuntimeException::fromInternalRedisError($redis);
+        }
+
+        $result = [];
+        foreach ($resultsByIndex as $keyIndex => $value) {
+            $normalizedKey = $normalizedKeys[$keyIndex];
+            $namespacedKey = $namespacedKeys[$keyIndex];
+            if ($value === false && ! $this->isFalseReturnValuePersisted($redis, $namespacedKey)) {
+                continue;
+            }
+
+            $result[$normalizedKey] = $value;
+        }
+
+        return $result;
     }
 
     /**
@@ -174,9 +195,9 @@ final class Redis extends AbstractMetadataCapableAdapter implements
     {
         $redis = $this->getRedisResource();
         try {
-            return (bool) $redis->exists($this->namespacePrefix . $normalizedKey);
-        } catch (RedisResourceException $e) {
-            throw new Exception\RuntimeException($redis->getLastError() ?? $e->getMessage(), $e->getCode(), $e);
+            return (bool) $redis->exists($this->createNamespacedKey($normalizedKey));
+        } catch (RedisFromExtensionException $exception) {
+            throw RedisRuntimeException::fromRedisException($exception, $redis);
         }
     }
 
@@ -191,19 +212,24 @@ final class Redis extends AbstractMetadataCapableAdapter implements
 
         try {
             if ($ttl) {
-                if ($options->getResourceManager()->getMajorVersion($options->getResourceId()) < 2) {
-                    throw new Exception\UnsupportedMethodCallException("To use ttl you need version >= 2.0.0");
+                if ($this->getCapabilities()->ttlSupported === false) {
+                    throw new Exception\UnsupportedMethodCallException(
+                        'To use ttl you need redis-server version >= 2.0.0',
+                    );
                 }
                 $success = $redis->setex(
-                    $this->namespacePrefix . $normalizedKey,
+                    $this->createNamespacedKey($normalizedKey),
                     (int) $ttl,
                     $this->preSerialize($value)
                 ) !== false;
             } else {
-                $success = $redis->set($this->namespacePrefix . $normalizedKey, $this->preSerialize($value)) !== false;
+                $success = $redis->set(
+                    $this->createNamespacedKey($normalizedKey),
+                    $this->preSerialize($value)
+                ) !== false;
             }
-        } catch (RedisResourceException $e) {
-            throw new Exception\RuntimeException($redis->getLastError() ?? $e->getMessage(), $e->getCode(), $e);
+        } catch (RedisFromExtensionException $exception) {
+            throw RedisRuntimeException::fromRedisException($exception, $redis);
         }
 
         return $success;
@@ -220,15 +246,17 @@ final class Redis extends AbstractMetadataCapableAdapter implements
 
         $namespacedKeyValuePairs = [];
         foreach ($normalizedKeyValuePairs as $normalizedKey => $value) {
-            $namespacedKeyValuePairs[$this->namespacePrefix . $normalizedKey] = $this->preSerialize($value);
+            $namespacedKeyValuePairs[$this->createNamespacedKey($normalizedKey)] = $this->preSerialize($value);
         }
 
         try {
             if ($ttl > 0) {
-                //check if ttl is supported
-                if ($options->getResourceManager()->getMajorVersion($options->getResourceId()) < 2) {
-                    throw new Exception\UnsupportedMethodCallException("To use ttl you need version >= 2.0.0");
+                if ($this->getCapabilities()->ttlSupported === false) {
+                    throw new Exception\UnsupportedMethodCallException(
+                        'To use ttl you need redis-server version >= 2.0.0',
+                    );
                 }
+
                 //mSet does not allow ttl, so use transaction
                 $transaction = $redis->multi();
                 foreach ($namespacedKeyValuePairs as $key => $value) {
@@ -238,11 +266,12 @@ final class Redis extends AbstractMetadataCapableAdapter implements
             } else {
                 $success = $redis->mSet($namespacedKeyValuePairs) !== false;
             }
-        } catch (RedisResourceException $e) {
-            throw new Exception\RuntimeException($redis->getLastError() ?? $e->getMessage(), $e->getCode(), $e);
+        } catch (RedisFromExtensionException $exception) {
+            throw RedisRuntimeException::fromRedisException($exception, $redis);
         }
+
         if (! $success) {
-            throw new Exception\RuntimeException($redis->getLastError() ?? 'no last error');
+            throw RedisRuntimeException::fromInternalRedisError($redis);
         }
 
         return [];
@@ -259,8 +288,10 @@ final class Redis extends AbstractMetadataCapableAdapter implements
 
         try {
             if ($ttl > 0) {
-                if ($options->getResourceManager()->getMajorVersion($options->getResourceId()) < 2) {
-                    throw new Exception\UnsupportedMethodCallException("To use ttl you need version >= 2.0.0");
+                if ($this->getCapabilities()->ttlSupported === false) {
+                    throw new Exception\UnsupportedMethodCallException(
+                        'To use ttl you need redis-server version >= 2.0.0',
+                    );
                 }
 
                 /**
@@ -268,19 +299,19 @@ final class Redis extends AbstractMetadataCapableAdapter implements
                  * This means we only set the ttl after the key/value has been successfully set.
                  */
                 $success = $redis->setnx(
-                    $this->namespacePrefix . $normalizedKey,
+                    $this->createNamespacedKey($normalizedKey),
                     $this->preSerialize($value)
                 ) !== false;
                 if ($success) {
-                    $redis->expire($this->namespacePrefix . $normalizedKey, (int) $ttl);
+                    $redis->expire($this->createNamespacedKey($normalizedKey), (int) $ttl);
                 }
 
                 return $success;
             }
 
-            return $redis->setnx($this->namespacePrefix . $normalizedKey, $this->preSerialize($value)) !== false;
-        } catch (RedisResourceException $e) {
-            throw new Exception\RuntimeException($redis->getLastError() ?? $e->getMessage(), $e->getCode(), $e);
+            return $redis->setnx($this->createNamespacedKey($normalizedKey), $this->preSerialize($value)) !== false;
+        } catch (RedisFromExtensionException $exception) {
+            throw RedisRuntimeException::fromRedisException($exception, $redis);
         }
     }
 
@@ -292,9 +323,9 @@ final class Redis extends AbstractMetadataCapableAdapter implements
         $redis = $this->getRedisResource();
         try {
             $ttl = $this->getOptions()->getTtl();
-            return (bool) $redis->expire($this->namespacePrefix . $normalizedKey, (int) $ttl);
-        } catch (RedisResourceException $e) {
-            throw new Exception\RuntimeException($redis->getLastError() ?? $e->getMessage(), $e->getCode(), $e);
+            return (bool) $redis->expire($this->createNamespacedKey($normalizedKey), (int) $ttl);
+        } catch (RedisFromExtensionException $exception) {
+            throw RedisRuntimeException::fromRedisException($exception, $redis);
         }
     }
 
@@ -305,9 +336,9 @@ final class Redis extends AbstractMetadataCapableAdapter implements
     {
         $redis = $this->getRedisResource();
         try {
-            return (bool) $redis->del($this->namespacePrefix . $normalizedKey);
-        } catch (RedisResourceException $e) {
-            throw new Exception\RuntimeException($redis->getLastError() ?? $e->getMessage(), $e->getCode(), $e);
+            return (bool) $redis->del($this->createNamespacedKey($normalizedKey));
+        } catch (RedisFromExtensionException $exception) {
+            throw RedisRuntimeException::fromRedisException($exception, $redis);
         }
     }
 
@@ -319,8 +350,8 @@ final class Redis extends AbstractMetadataCapableAdapter implements
         $redis = $this->getRedisResource();
         try {
             return $redis->flushDB();
-        } catch (RedisResourceException $e) {
-            throw new Exception\RuntimeException($redis->getLastError() ?? $e->getMessage(), $e->getCode(), $e);
+        } catch (RedisFromExtensionException $exception) {
+            throw RedisRuntimeException::fromRedisException($exception, $redis);
         }
     }
 
@@ -371,8 +402,8 @@ final class Redis extends AbstractMetadataCapableAdapter implements
         $redis = $this->getRedisResource();
         try {
             $info = $redis->info();
-        } catch (RedisResourceException $e) {
-            throw new Exception\RuntimeException($redis->getLastError() ?? $e->getMessage(), $e->getCode(), $e);
+        } catch (RedisFromExtensionException $exception) {
+            throw RedisRuntimeException::fromRedisException($exception, $redis);
         }
 
         Assert::isMap($info);
@@ -391,11 +422,9 @@ final class Redis extends AbstractMetadataCapableAdapter implements
             return $this->capabilities;
         }
 
-        $options      = $this->getOptions();
-        $resourceMgr  = $options->getResourceManager();
-        $serializer   = $resourceMgr->getLibOption($options->getResourceId(), RedisResource::OPT_SERIALIZER);
-        $redisVersion = $resourceMgr->getMajorVersion($options->getResourceId());
-        $maxKeyLength = version_compare((string) $redisVersion, '3', '<') ? 255 : 512_000_000;
+        $redisSerializerOptionUsed = $this->getResourceManager()->hasSerializationSupport($this);
+        $redisVersion              = $this->getRedisVersion();
+        $maxKeyLength              = version_compare($redisVersion, '3', '<') ? 255 : 512_000_000;
 
         $supportedDataTypes = [
             'NULL'     => 'string',
@@ -408,7 +437,7 @@ final class Redis extends AbstractMetadataCapableAdapter implements
             'resource' => false,
         ];
 
-        if ($serializer !== null) {
+        if ($redisSerializerOptionUsed === true) {
             $supportedDataTypes = [
                 'NULL'     => true,
                 'boolean'  => true,
@@ -421,35 +450,66 @@ final class Redis extends AbstractMetadataCapableAdapter implements
             ];
         }
 
-        $this->capabilities = new Capabilities(
+        return $this->capabilities = new Capabilities(
             maxKeyLength: $maxKeyLength,
-            ttlSupported: $redisVersion >= 2,
+            ttlSupported: version_compare($redisVersion, '2', 'ge'),
             namespaceIsPrefix: true,
             supportedDataTypes: $supportedDataTypes,
             ttlPrecision: 1,
             usesRequestTime: false,
         );
+    }
 
-        return $this->capabilities;
+    public function getRedisVersion(): string
+    {
+        $options            = $this->getOptions();
+        $versionFromOptions = $options->getRedisVersion();
+        if ($versionFromOptions !== '') {
+            return $versionFromOptions;
+        }
+
+        $redis = $this->getRedisResource();
+        try {
+            $info = $redis->info();
+        } catch (RedisFromExtensionException $exception) {
+            throw RedisRuntimeException::fromRedisException($exception, $redis);
+        }
+
+        if (! is_array($info)) {
+            return '0.0.0-unknown';
+        }
+
+        if (! isset($info['redis_version']) || ! is_string($info['redis_version'])) {
+            return '0.0.0-unknown';
+        }
+
+        $version = $info['redis_version'];
+        assert($version !== '');
+        $options->setRedisVersion($version);
+
+        return $version;
+    }
+
+    public function setResourceManager(RedisResourceManagerInterface $resourceManager): void
+    {
+        $this->resourceManager = $resourceManager;
     }
 
     /**
      * {@inheritDoc}
-     *
-     * @throws Exception\ExceptionInterface
      */
     protected function internalGetMetadata(string $normalizedKey): Metadata|null
     {
         $redis = $this->getRedisResource();
 
         try {
-            $redisVersion = $this->resourceManager->getVersion($this->resourceId);
+            $redisVersion = $this->getRedisVersion();
 
             if (version_compare($redisVersion, '2.8', '>=')) {
                 // redis >= 2.8
                 // The command 'pttl' returns -2 if the item does not exist
                 // and -1 if the item has no associated expire
-                $pttl = $redis->pttl($this->namespacePrefix . $normalizedKey);
+                $pttl = $redis->pttl($this->createNamespacedKey($normalizedKey));
                 if ($pttl <= -2) {
                     return null;
                 }
@@ -466,7 +526,7 @@ final class Redis extends AbstractMetadataCapableAdapter implements
             if (version_compare($redisVersion, '2.6', '>=')) {
                 // redis >= 2.6, < 2.8
                 // The command 'pttl' returns -1 if the item does not exist or the item has no associated expire
-                $pttl = $redis->pttl($this->namespacePrefix . $normalizedKey);
+                $pttl = $redis->pttl($this->createNamespacedKey($normalizedKey));
                 if ($pttl <= -1) {
                     if (! $this->internalHasItem($normalizedKey)) {
                         return null;
@@ -486,7 +546,7 @@ final class Redis extends AbstractMetadataCapableAdapter implements
                 // The command 'ttl' returns 0 if the item does not exist same as if the item is going to be expired
                 // NOTE: In case of ttl=0 we return false because the item is going to be expired in a very near future
                 //       and then doesn't exist anymore
-                $ttl = $redis->ttl($this->namespacePrefix . $normalizedKey);
+                $ttl = $redis->ttl($this->createNamespacedKey($normalizedKey));
                 if ($ttl <= -1) {
                     if (! $this->internalHasItem($normalizedKey)) {
                         return null;
@@ -500,8 +560,8 @@ final class Redis extends AbstractMetadataCapableAdapter implements
             } elseif (! $this->internalHasItem($normalizedKey)) {
                 return null;
             }
-        } catch (RedisResourceException $e) {
-            throw new Exception\RuntimeException($redis->getLastError() ?? $e->getMessage(), $e->getCode(), $e);
+        } catch (RedisFromExtensionException $exception) {
+            throw RedisRuntimeException::fromRedisException($exception, $redis);
         }
 
         return new Metadata(remainingTimeToLive: null);
@@ -516,13 +576,63 @@ final class Redis extends AbstractMetadataCapableAdapter implements
      */
     private function preSerialize(mixed $value): mixed
     {
-        $options     = $this->getOptions();
-        $resourceMgr = $options->getResourceManager();
-        $serializer  = $resourceMgr->getLibOption($options->getResourceId(), RedisResource::OPT_SERIALIZER);
-        if ($serializer === null) {
+        $resourceManager = $this->getResourceManager();
+        if (! $resourceManager->hasSerializationSupport($this)) {
             return (string) $value;
         }
 
         return $value;
+    }
+
+    private function getResourceManager(): RedisResourceManagerInterface
+    {
+        if ($this->resourceManager !== null) {
+            return $this->resourceManager;
+        }
+
+        return $this->resourceManager = new RedisResourceManager($this->getOptions());
+    }
+
+    /**
+     * @param non-empty-string|int $key
+     * @return non-empty-string
+     */
+    private function createNamespacedKey(string|int $key): string
+    {
+        if ($this->namespacePrefix !== null) {
+            return $this->namespacePrefix . $key;
+        }
+
+        $options               = $this->getOptions();
+        $namespace             = $options->getNamespace();
+        $this->namespacePrefix = $namespace;
+        if ($namespace !== '') {
+            $this->namespacePrefix = $namespace . $options->getNamespaceSeparator();
+        }
+
+        return $this->namespacePrefix . $key;
+    }
+
+    /**
+     * This method verifies that the return value from {@see RedisClusterFromExtension::get} or
+     * {@see RedisClusterFromExtension::mget} is `false` because the key does not exist or because the keys value
+     * is `false` at type-level.
+     */
+    private function isFalseReturnValuePersisted(RedisFromExtension $redis, string $key): bool
+    {
+        $serializer = $this
+            ->getOptions()
+            ->getLibOption(RedisFromExtension::OPT_SERIALIZER, RedisFromExtension::SERIALIZER_NONE);
+        if ($serializer === RedisFromExtension::SERIALIZER_NONE) {
+            return false;
+        }
+
+        try {
+            /** @psalm-var 0|1 $exists */
+            $exists = $redis->exists($key);
+            return (bool) $exists;
+        } catch (RedisFromExtensionException $exception) {
+            throw RedisRuntimeException::fromRedisException($exception, $redis);
+        }
     }
 }
