@@ -25,6 +25,9 @@ trait RedisClusterStorageCreationTrait
     /** @var array<non-empty-string,non-empty-string> */
     private array $namespaces = [];
 
+    /**
+     * @param RedisFromExtension::SERIALIZER_* $serializerOption
+     */
     private function createRedisClusterStorage(int $serializerOption, bool $serializerPlugin): RedisCluster
     {
         $node = $this->getClusterNameFromEnvironment();

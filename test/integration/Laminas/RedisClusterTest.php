@@ -14,7 +14,7 @@ use LaminasTest\Cache\Storage\Adapter\AbstractCommonAdapterTest;
 use Redis as RedisFromExtension;
 
 /**
- * @template-extends AbstractCommonAdapterTest<RedisCluster,RedisClusterOptions>
+ * @template-extends AbstractCommonAdapterTest<RedisClusterOptions,RedisCluster>
  */
 final class RedisClusterTest extends AbstractCommonAdapterTest
 {
@@ -26,8 +26,8 @@ final class RedisClusterTest extends AbstractCommonAdapterTest
         self::assertInstanceOf(StorageInterface::class, $storage);
         $storage->setItem('foo', 'bar');
         $flushed = $storage->flush();
-        $this->assertTrue($flushed);
-        $this->assertFalse($storage->hasItem('foo'));
+        self::assertTrue($flushed);
+        self::assertFalse($storage->hasItem('foo'));
     }
 
     public function testCanCreateResourceFromSeeds(): void
@@ -40,7 +40,7 @@ final class RedisClusterTest extends AbstractCommonAdapterTest
         ]);
 
         $storage = new RedisCluster($options);
-        $this->assertTrue($storage->flush());
+        self::assertTrue($storage->flush());
     }
 
     public function testWillHandleIntegratedSerializerInformation(): void
@@ -56,7 +56,7 @@ final class RedisClusterTest extends AbstractCommonAdapterTest
 
         $capabilities = $storage->getCapabilities();
         $dataTypes    = $capabilities->supportedDataTypes;
-        $this->assertEquals([
+        self::assertEquals([
             'NULL'     => true,
             'boolean'  => true,
             'integer'  => true,
@@ -91,7 +91,7 @@ final class RedisClusterTest extends AbstractCommonAdapterTest
 
         $capabilities = $storage->getCapabilities();
         $dataTypes    = $capabilities->supportedDataTypes;
-        $this->assertEquals([
+        self::assertEquals([
             'NULL'     => 'string',
             'boolean'  => 'string',
             'integer'  => 'string',

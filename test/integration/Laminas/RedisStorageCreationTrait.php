@@ -15,12 +15,14 @@ trait RedisStorageCreationTrait
 {
     use RedisConfigurationFromEnvironmentTrait;
 
+    /**
+     * @param RedisFromExtension::SERIALIZER_* $serializerOption
+     */
     private function createRedisStorage(int $serializerOption, bool $serializerPlugin): Redis
     {
-        $options = ['resource_id' => self::class];
-
-        $host = $this->host();
-        $port = $this->port();
+        $host    = $this->host();
+        $port    = $this->port();
+        $options = [];
 
         if ($host && $port) {
             $options['server'] = [$host, $port];
@@ -34,6 +36,8 @@ trait RedisStorageCreationTrait
         if ($password) {
             $options['password'] = $password;
         }
+
+        $options['lib_options'] = [RedisFromExtension::OPT_SERIALIZER => $serializerOption];
 
         $storage = new Redis(new RedisOptions($options));
         if ($serializerOption === RedisFromExtension::SERIALIZER_NONE && $serializerPlugin) {

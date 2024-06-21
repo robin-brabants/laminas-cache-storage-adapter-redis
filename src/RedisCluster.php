@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Laminas\Cache\Storage\Adapter;
 
 use Laminas\Cache\Exception;
+use Laminas\Cache\Exception\RuntimeException;
 use Laminas\Cache\Storage\AbstractMetadataCapableAdapter;
 use Laminas\Cache\Storage\Adapter\Exception\MetadataErrorException;
 use Laminas\Cache\Storage\Adapter\Exception\RedisRuntimeException;
@@ -23,6 +24,7 @@ use function assert;
 use function count;
 use function is_array;
 use function is_int;
+use function is_string;
 use function version_compare;
 
 /**
@@ -49,6 +51,7 @@ final class RedisCluster extends AbstractMetadataCapableAdapter implements
         $this->resource        = null;
         $this->namespacePrefix = null;
         parent::__construct($options);
+
         $eventManager = $this->getEventManager();
         $eventManager->attach('option', function (): void {
             $this->resource        = null;
@@ -401,16 +404,6 @@ final class RedisCluster extends AbstractMetadataCapableAdapter implements
         ];
     }
 
-    /**
-     * @psalm-param RedisClusterOptions::OPT_* $option
-     * @return mixed
-     */
-    private function getLibOption(int $option)
-    {
-        $resourceManager = $this->getResourceManager();
-        return $resourceManager->getLibOption($option);
-    }
-
     private function searchAndDelete(string $prefix, string $namespace): bool
     {
         $redis   = $this->getRedisResource();
@@ -441,7 +434,10 @@ final class RedisCluster extends AbstractMetadataCapableAdapter implements
      */
     private function isFalseReturnValuePersisted(RedisClusterFromExtension $redis, string $key): bool
     {
-        $serializer = $this->getLibOption(RedisFromExtension::OPT_SERIALIZER);
+        $serializer = $this
+            ->getOptions()
+            ->getLibOption(RedisFromExtension::OPT_SERIALIZER, RedisFromExtension::SERIALIZER_NONE);
+
         if ($serializer === RedisFromExtension::SERIALIZER_NONE) {
             return false;
         }
@@ -531,10 +527,30 @@ final class RedisCluster extends AbstractMetadataCapableAdapter implements
         return null;
     }
 
-    private function getRedisVersion(): string
+    public function getRedisVersion(): string
     {
-        $resourceManager = $this->getResourceManager();
-        return $resourceManager->getVersion();
+        $options            = $this->getOptions();
+        $versionFromOptions = $options->getRedisVersion();
+        if ($versionFromOptions) {
+            return $versionFromOptions;
+        }
+
+        $redisCluster = $this->getRedisResource();
+        try {
+            $info = $this->info($redisCluster);
+        } catch (RedisClusterException $exception) {
+            throw RedisRuntimeException::fromClusterException($exception, $redisCluster);
+        }
+
+        if (! isset($info['redis_version']) || ! is_string($info['redis_version'])) {
+            return '0.0.0-unknown';
+        }
+
+        $version = $info['redis_version'];
+        assert($version !== '');
+        $options->setRedisVersion($version);
+
+        return $version;
     }
 
     private function hasSerializationSupport(): bool
@@ -552,11 +568,26 @@ final class RedisCluster extends AbstractMetadataCapableAdapter implements
         return $this->resourceManager = new RedisClusterResourceManager($this->getOptions());
     }
 
-    /**
-     * @internal This is only used for unit testing. There should be no need to use this method in upstream projects.
-     */
     public function setResourceManager(RedisClusterResourceManagerInterface $resourceManager): void
     {
         $this->resourceManager = $resourceManager;
+    }
+
+    private function info(RedisClusterFromExtension $resource): array
+    {
+        $options = $this->getOptions();
+        if ($options->hasName()) {
+            $name = $options->getName();
+
+            return $resource->info($name);
+        }
+
+        $seeds = $options->getSeeds();
+        if ($seeds === []) {
+            throw new RuntimeException('Neither the node name nor any seed is configured.');
+        }
+
+        $seed = $seeds[0];
+        return $resource->info($seed);
     }
 }
