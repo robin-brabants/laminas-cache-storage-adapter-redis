@@ -409,7 +409,7 @@ final class RedisCluster extends AbstractMetadataCapableAdapter implements
         $redis   = $this->getRedisResource();
         $options = $this->getOptions();
 
-        $prefix = $namespace === '' ? '' : $namespace . $options->getNamespaceSeparator() . $prefix;
+        $prefix = $namespace === '' ? $prefix : $namespace . $options->getNamespaceSeparator() . $prefix;
 
         /** @var array<array-key,string> $keys */
         $keys = $redis->keys($prefix . '*');
