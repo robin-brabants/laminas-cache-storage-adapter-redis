@@ -103,6 +103,33 @@ final class Redis extends AbstractMetadataCapableAdapter implements
     }
 
     /**
+     * @psalm-api
+     * @return non-empty-string|null
+     */
+    public function getPersistentId(bool $update = false): ?string
+    {
+        $options = $this->getOptions();
+
+        if (! $options->isPersistent()) {
+            return null;
+        }
+
+        if ($update === false) {
+            $persistentId = $options->getPersistentId();
+            if ($persistentId !== null) {
+                return $persistentId;
+            }
+        }
+
+        $persistentId = $this->getRedisResource()->getPersistentID();
+        if (! is_string($persistentId) || $persistentId === '') {
+            return null;
+        }
+
+        return $persistentId;
+    }
+
+    /**
      * {@inheritDoc}
      */
     protected function internalGetItem(

@@ -74,6 +74,7 @@ final class RedisOptions extends AdapterOptions
      * The namespace separator
      */
     protected string $namespaceSeparator = ':';
+    /** @var non-empty-string|null */
     protected string|null $persistentId;
 
     protected string $redisVersion = '';
@@ -128,6 +129,9 @@ final class RedisOptions extends AdapterOptions
         return $this->namespaceSeparator;
     }
 
+    /**
+     * @return non-empty-string|null
+     */
     public function getPersistentId(): string|null
     {
         return $this->persistentId;
