@@ -74,9 +74,9 @@ final class RedisClusterOptionsFromIniTest extends TestCase
         $options = new RedisClusterOptionsFromIni();
 
         self::assertEquals(['bar'], $options->getSeeds('foo'));
-        self::assertEquals(1.0, $options->getTimeout('foo', 0.0));
-        self::assertEquals(2.0, $options->getReadTimeout('foo', 0.0));
-        self::assertEquals('secret', $options->getPasswordByName('foo', ''));
+        self::assertEquals(1.0, $options->getTimeout('foo'));
+        self::assertEquals(2.0, $options->getReadTimeout('foo'));
+        self::assertEquals('secret', $options->getPassword('foo'));
     }
 
     protected function setUp(): void

@@ -28,7 +28,7 @@ final class RedisClusterOptionsFromIni
     private array $readTimeoutByName;
 
     /** @var array<non-empty-string,string> */
-    private array $authenticationByName;
+    private array $passwordByName;
 
     public function __construct()
     {
@@ -88,16 +88,16 @@ final class RedisClusterOptionsFromIni
             $authenticationConfiguration = '';
         }
 
-        $authenticationByName = [];
+        $passwordByName = [];
         if ($authenticationConfiguration !== '') {
             parse_str($authenticationConfiguration, $parsedAuthenticationByName);
-            foreach ($parsedAuthenticationByName as $name => $authentication) {
-                assert(is_string($name) && $name !== '' && is_string($authentication));
-                $authenticationByName[$name] = $authentication;
+            foreach ($parsedAuthenticationByName as $name => $password) {
+                assert(is_string($name) && $name !== '' && is_string($password));
+                $passwordByName[$name] = $password;
             }
         }
 
-        $this->authenticationByName = $authenticationByName;
+        $this->passwordByName = $passwordByName;
     }
 
     /**
@@ -117,24 +117,24 @@ final class RedisClusterOptionsFromIni
     /**
      * @psalm-param non-empty-string $name
      */
-    public function getTimeout(string $name, float $fallback): float
+    public function getTimeout(string $name): ?float
     {
-        return $this->timeoutByName[$name] ?? $fallback;
+        return $this->timeoutByName[$name];
     }
 
     /**
      * @psalm-param non-empty-string $name
      */
-    public function getReadTimeout(string $name, float $fallback): float
+    public function getReadTimeout(string $name): ?float
     {
-        return $this->readTimeoutByName[$name] ?? $fallback;
+        return $this->readTimeoutByName[$name];
     }
 
     /**
      * @psalm-param non-empty-string $name
      */
-    public function getPasswordByName(string $name, string $fallback): string
+    public function getPassword(string $name): ?string
     {
-        return $this->authenticationByName[$name] ?? $fallback;
+        return $this->passwordByName[$name];
     }
 }
