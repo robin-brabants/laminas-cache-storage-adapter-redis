@@ -97,9 +97,10 @@ final class RedisClusterResourceManager implements RedisClusterResourceManagerIn
         }
 
         $seeds          = $options->getSeeds($name);
-        $timeout        = $options->getTimeout($name) ?? $fallbackTimeout;
-        $readTimeout    = $options->getReadTimeout($name) ?? $fallbackReadTimeout;
-        $authentication = $options->getPassword($name) ?? $fallbackAuthentication;
+        $timeout        = $options->getTimeout($name, $fallbackTimeout);
+        $readTimeout    = $options->getReadTimeout($name, $fallbackReadTimeout);
+        $password       = $options->getPasswordByName($name, '');
+        $authentication = $password === '' ? $fallbackAuthentication : $password;
 
         /**
          * Psalm currently (<= 5.26.1) uses an outdated (phpredis < 5.3.2) constructor signature for the RedisCluster

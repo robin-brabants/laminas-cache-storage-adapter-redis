@@ -93,7 +93,7 @@ final class RedisClusterOptionsTest extends AbstractAdapterOptionsTest
         self::assertFalse($options->isPersistent());
         self::assertEquals('1.0', $options->getRedisVersion());
         self::assertEquals('user', $options->getUsername());
-        self::assertNull($options->getPassword());
+        self::assertEquals('', $options->getPassword());
     }
 
     public function testWillDetectSeedsAndNodenameConfiguration(): void

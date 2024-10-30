@@ -117,24 +117,24 @@ final class RedisClusterOptionsFromIni
     /**
      * @psalm-param non-empty-string $name
      */
-    public function getTimeout(string $name): ?float
+    public function getTimeout(string $name, float $fallback): float
     {
-        return $this->timeoutByName[$name];
+        return $this->timeoutByName[$name] ?? $fallback;
     }
 
     /**
      * @psalm-param non-empty-string $name
      */
-    public function getReadTimeout(string $name): ?float
+    public function getReadTimeout(string $name, float $fallback): float
     {
-        return $this->readTimeoutByName[$name];
+        return $this->readTimeoutByName[$name] ?? $fallback;
     }
 
     /**
      * @psalm-param non-empty-string $name
      */
-    public function getPassword(string $name): ?string
+    public function getPasswordByName(string $name, string $fallback): string
     {
-        return $this->passwordByName[$name];
+        return $this->passwordByName[$name] ?? $fallback;
     }
 }

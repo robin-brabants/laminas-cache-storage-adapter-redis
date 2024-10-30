@@ -66,7 +66,7 @@ final class RedisClusterOptions extends AdapterOptions
 
     private ?string $username = null;
 
-    private ?string $password = null;
+    private string $password = '';
 
     private ?SslContext $sslContext = null;
 
@@ -263,7 +263,7 @@ final class RedisClusterOptions extends AdapterOptions
         $this->username = $username;
     }
 
-    public function getPassword(): ?string
+    public function getPassword(): string
     {
         return $this->password;
     }
@@ -281,10 +281,11 @@ final class RedisClusterOptions extends AdapterOptions
      */
     public function getAuthentication(): array|string|null
     {
+        $password = $this->password === '' ? null : $this->password;
         if ($this->username !== null && $this->username !== '') {
-            return [$this->username, $this->password];
+            return [$this->username, $password];
         }
-        return $this->password;
+        return $password;
     }
 
     public function getSslContext(): ?SslContext
