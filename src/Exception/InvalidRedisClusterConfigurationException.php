@@ -42,4 +42,9 @@ final class InvalidRedisClusterConfigurationException extends InvalidArgumentExc
             )
         );
     }
+
+    public static function fromMissingRequiredPassword(): self
+    {
+        return new self('If a Redis user is provided, a password has to be configured as well.');
+    }
 }

@@ -52,7 +52,7 @@
       <code><![CDATA[setSeeds]]></code>
       <code><![CDATA[setSslContext]]></code>
       <code><![CDATA[setTimeout]]></code>
-      <code><![CDATA[setUsername]]></code>
+      <code><![CDATA[setUser]]></code>
     </PossiblyUnusedMethod>
   </file>
   <file src="src/RedisOptions.php">

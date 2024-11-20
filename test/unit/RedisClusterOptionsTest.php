@@ -72,7 +72,7 @@ final class RedisClusterOptionsTest extends AbstractAdapterOptionsTest
         self::assertEquals(2.0, $options->getReadTimeout());
         self::assertFalse($options->isPersistent());
         self::assertEquals('1.0', $options->getRedisVersion());
-        self::assertNull($options->getUsername());
+        self::assertEmpty($options->getUser());
         self::assertEquals('secret', $options->getPassword());
     }
 
@@ -84,7 +84,7 @@ final class RedisClusterOptionsTest extends AbstractAdapterOptionsTest
             'read_timeout'  => 2.0,
             'persistent'    => false,
             'redis_version' => '1.0',
-            'username'      => 'user',
+            'user'          => 'user',
         ]);
 
         self::assertEquals(['localhost:1234'], $options->getSeeds());
@@ -92,7 +92,7 @@ final class RedisClusterOptionsTest extends AbstractAdapterOptionsTest
         self::assertEquals(2.0, $options->getReadTimeout());
         self::assertFalse($options->isPersistent());
         self::assertEquals('1.0', $options->getRedisVersion());
-        self::assertEquals('user', $options->getUsername());
+        self::assertEquals('user', $options->getUser());
         self::assertEquals('', $options->getPassword());
     }
 

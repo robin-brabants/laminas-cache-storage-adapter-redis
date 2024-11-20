@@ -64,7 +64,7 @@ final class RedisClusterOptions extends AdapterOptions
     /** @psalm-var array<positive-int,mixed> */
     private array $libOptions = [];
 
-    private ?string $username = null;
+    private string $user = '';
 
     private string $password = '';
 
@@ -250,17 +250,17 @@ final class RedisClusterOptions extends AdapterOptions
         return $this->libOptions[$option] ?? $default;
     }
 
-    public function getUsername(): ?string
+    public function getUser(): string
     {
-        return $this->username;
+        return $this->user;
     }
 
     /**
-     * @psalm-param non-empty-string $username
+     * @psalm-param non-empty-string $user
      */
-    public function setUsername(string $username): void
+    public function setUser(string $user): void
     {
-        $this->username = $username;
+        $this->user = $user;
     }
 
     public function getPassword(): string
@@ -274,18 +274,6 @@ final class RedisClusterOptions extends AdapterOptions
     public function setPassword(string $password): void
     {
         $this->password = $password;
-    }
-
-    /**
-     * @return array<int,string|null>|string|null
-     */
-    public function getAuthentication(): array|string|null
-    {
-        $password = $this->password === '' ? null : $this->password;
-        if ($this->username !== null && $this->username !== '') {
-            return [$this->username, $password];
-        }
-        return $password;
     }
 
     public function getSslContext(): ?SslContext

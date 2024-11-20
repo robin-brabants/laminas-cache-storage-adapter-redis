@@ -48,13 +48,26 @@ final class RedisClusterResourceManager implements RedisClusterResourceManagerIn
 
     private function createRedisResource(RedisClusterOptions $options): RedisClusterFromExtension
     {
+        $user     = $options->getUser();
+        $password = $options->getPassword();
+
+        if ($user !== '' && $password !== '') {
+            $authentication = [$user, $password];
+        } elseif ($user !== '' && $password === '') {
+            throw InvalidRedisClusterConfigurationException::fromMissingRequiredPassword();
+        } elseif ($user === '' && $password !== '') {
+            $authentication = [$password];
+        } else {
+            $authentication = null;
+        }
+
         if ($options->hasName()) {
             return $this->createRedisResourceFromName(
                 $options->getName(),
                 $options->getTimeout(),
                 $options->getReadTimeout(),
                 $options->isPersistent(),
-                $options->getAuthentication(),
+                $authentication,
                 $options->getSslContext()
             );
         }
@@ -64,7 +77,7 @@ final class RedisClusterResourceManager implements RedisClusterResourceManagerIn
          * class in the phpredis extension.
          *
          * @psalm-suppress TooManyArguments
-         * @psalm-suppress PossiblyInvalidArgument
+         * @psalm-suppress InvalidArgument
          */
         return new RedisClusterFromExtension(
             null,
@@ -72,20 +85,21 @@ final class RedisClusterResourceManager implements RedisClusterResourceManagerIn
             $options->getTimeout(),
             $options->getReadTimeout(),
             $options->isPersistent(),
-            $options->getAuthentication(),
+            $authentication,
             $options->getSslContext()?->toSslContextArray()
         );
     }
 
     /**
      * @psalm-param non-empty-string $name
+     * @psalm-param array{0: non-empty-string, 1?: non-empty-string}|null $fallbackAuthentication
      */
     private function createRedisResourceFromName(
         string $name,
         float $fallbackTimeout,
         float $fallbackReadTimeout,
         bool $persistent,
-        array|string|null $fallbackAuthentication,
+        array|null $fallbackAuthentication,
         ?SslContext $sslContext
     ): RedisClusterFromExtension {
         try {
