@@ -48,18 +48,7 @@ final class RedisClusterResourceManager implements RedisClusterResourceManagerIn
 
     private function createRedisResource(RedisClusterOptions $options): RedisClusterFromExtension
     {
-        $user     = $options->getUser();
-        $password = $options->getPassword();
-
-        if ($user !== '' && $password !== '') {
-            $authentication = [$user, $password];
-        } elseif ($user !== '' && $password === '') {
-            throw InvalidRedisClusterConfigurationException::fromMissingRequiredPassword();
-        } elseif ($user === '' && $password !== '') {
-            $authentication = [$password];
-        } else {
-            $authentication = null;
-        }
+        $authentication = RedisAuthProvider::createAuthenticationObject($options->getUser(), $options->getPassword());
 
         if ($options->hasName()) {
             return $this->createRedisResourceFromName(
