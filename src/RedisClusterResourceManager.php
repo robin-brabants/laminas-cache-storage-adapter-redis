@@ -48,7 +48,7 @@ final class RedisClusterResourceManager implements RedisClusterResourceManagerIn
 
     private function createRedisResource(RedisClusterOptions $options): RedisClusterFromExtension
     {
-        $authentication = RedisAuthProvider::createAuthenticationObject($options->getUser(), $options->getPassword());
+        $authenticationInfo = RedisAuthenticationInfo::fromOptions($options);
 
         if ($options->hasName()) {
             return $this->createRedisResourceFromName(
@@ -56,7 +56,7 @@ final class RedisClusterResourceManager implements RedisClusterResourceManagerIn
                 $options->getTimeout(),
                 $options->getReadTimeout(),
                 $options->isPersistent(),
-                $authentication,
+                $authenticationInfo,
                 $options->getSslContext()
             );
         }
@@ -74,21 +74,20 @@ final class RedisClusterResourceManager implements RedisClusterResourceManagerIn
             $options->getTimeout(),
             $options->getReadTimeout(),
             $options->isPersistent(),
-            $authentication,
+            $authenticationInfo?->toRedisAuthInfo(),
             $options->getSslContext()?->toSslContextArray()
         );
     }
 
     /**
      * @psalm-param non-empty-string $name
-     * @psalm-param array{0: non-empty-string, 1?: non-empty-string}|null $fallbackAuthentication
      */
     private function createRedisResourceFromName(
         string $name,
         float $fallbackTimeout,
         float $fallbackReadTimeout,
         bool $persistent,
-        array|null $fallbackAuthentication,
+        RedisAuthenticationInfo|null $fallbackAuthentication,
         ?SslContext $sslContext
     ): RedisClusterFromExtension {
         try {
@@ -103,7 +102,7 @@ final class RedisClusterResourceManager implements RedisClusterResourceManagerIn
         $timeout        = $options->getTimeout($name, $fallbackTimeout);
         $readTimeout    = $options->getReadTimeout($name, $fallbackReadTimeout);
         $password       = $options->getPasswordByName($name, '');
-        $authentication = $password === '' ? $fallbackAuthentication : $password;
+        $authentication = $password === '' ? $fallbackAuthentication?->toRedisAuthInfo() : $password;
 
         /**
          * Psalm currently (<= 5.26.1) uses an outdated (phpredis < 5.3.2) constructor signature for the RedisCluster

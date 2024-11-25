@@ -57,14 +57,14 @@ final class RedisResourceManager implements RedisResourceManagerInterface
             $port = $server['port'] ?? self::DEFAULT_REDIS_PORT;
         }
 
-        $authentication = RedisAuthProvider::createAuthenticationObject($options->getUser(), $options->getPassword());
+        $authenticationInfo = RedisAuthenticationInfo::fromOptions($options);
 
         $resourceOptions = [
             'host'           => $host,
             'port'           => $port,
             'connectTimeout' => $server['timeout'] ?? null,
             'persistent'     => $options->getPersistentId() ?? $options->isPersistent(),
-            'auth'           => $authentication,
+            'auth'           => $authenticationInfo?->toRedisAuthInfo(),
         ];
 
         $resource = new RedisFromExtension(array_filter($resourceOptions, fn (mixed $value) => $value !== null));

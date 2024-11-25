@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Laminas\Cache\Storage\Adapter;
 
+use InvalidArgumentException;
 use Laminas\Cache\Storage\Adapter\Exception\InvalidRedisClusterConfigurationException;
 use Webmozart\Assert\Assert;
 
@@ -43,12 +44,17 @@ final class RedisClusterOptionsFromIni
 
         $seedsByName = [];
         parse_str($seedsConfiguration, $parsedSeedsByName);
-        foreach ($parsedSeedsByName as $name => $seeds) {
-            assert(is_string($name) && $name !== '');
-            Assert::isNonEmptyList($seeds);
-            Assert::allStringNotEmpty($seeds);
-            $seedsByName[$name] = $seeds;
+        try {
+            foreach ($parsedSeedsByName as $name => $seeds) {
+                assert(is_string($name) && $name !== '');
+                Assert::isNonEmptyList($seeds);
+                Assert::allStringNotEmpty($seeds);
+                $seedsByName[$name] = $seeds;
+            }
+        } catch (InvalidArgumentException) {
+            throw InvalidRedisClusterConfigurationException::fromInvalidSeedsConfiguration($seedsConfiguration);
         }
+
         $this->seedsByName = $seedsByName;
 
         $timeoutConfiguration = ini_get('redis.clusters.timeout');
